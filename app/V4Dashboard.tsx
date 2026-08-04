@@ -125,6 +125,7 @@ export function V4Dashboard() {
               width={1200}
               height={630}
               priority
+              unoptimized
             />
             <div className="visual-hero-action">
               <div>
