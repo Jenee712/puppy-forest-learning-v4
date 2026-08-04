@@ -41,12 +41,32 @@ const primaryQuestions: Record<string, Omit<QuestionItem, "id" | "grade" | "eyeb
   "综合素养": { subject: "综合素养", knowledgePoint: "沟通合作", type: "single_choice", difficulty: 1, source: "local_core", title: "解决小问题", prompt: "和同学意见不一样时，先怎么做更合适？", visual: "🧒 💬 👧", options: ["认真听完再说明想法", "大声打断", "马上离开"], answer: "认真听完再说明想法", explanation: "先倾听、再表达，能帮助双方理解彼此并一起解决问题。" },
 };
 
+const gradeSpecificQuestions: Record<string, Omit<QuestionItem, "id" | "grade" | "eyebrow">> = {
+  "G5:语文": { subject: "语文", knowledgePoint: "联系上下文理解词语", type: "single_choice", difficulty: 2, source: "local_core", title: "读懂上下文", prompt: "“雨后的荷叶更加青翠，水珠在叶面上滚来滚去。”这里的“青翠”最接近什么意思？", visual: "🪷 雨后，荷叶托着亮晶晶的水珠。", options: ["鲜绿", "干枯", "弯曲"], answer: "鲜绿", explanation: "结合雨后荷叶的样子可知，“青翠”表示鲜明、浓绿的颜色。" },
+  "G6:语文": { subject: "语文", knowledgePoint: "句段主要意思", type: "single_choice", difficulty: 2, source: "local_core", title: "抓住主要意思", prompt: "清晨，爷爷先给菜地浇水，又把歪倒的竹架扶正，最后才回屋吃早饭。这段话主要写什么？", visual: "爷爷在清晨认真照料菜地。", options: ["爷爷照料菜地", "爷爷喜欢吃早饭", "竹架是怎样做的"], answer: "爷爷照料菜地", explanation: "浇水和扶竹架都属于照料菜地，要把几个动作概括在一起。" },
+  "G7:语文": { subject: "语文", knowledgePoint: "人物品质推断", type: "single_choice", difficulty: 2, source: "local_core", title: "从行动看人物", prompt: "比赛前，小岚发现同伴忘带画笔，便把自己的备用画笔分给他。这个细节最能表现小岚怎样的品质？", visual: "一个小行动，也能说明人物的特点。", options: ["乐于帮助别人", "做事粗心", "害怕比赛"], answer: "乐于帮助别人", explanation: "小岚主动分享备用画笔，表现出她愿意帮助同伴。" },
+  "G8:语文": { subject: "语文", knowledgePoint: "观点与依据", type: "single_choice", difficulty: 3, source: "local_core", title: "判断观点依据", prompt: "“社区图书角不应只增加新书，还要定期淘汰破损、内容过时的书。”下面哪一项最能支持这个观点？", visual: "好的论证，需要让理由和观点紧密对应。", options: ["书架的颜色应该统一", "破损和过时的书会降低阅读体验，也占用有限空间", "周末来图书角的人比较多"], answer: "破损和过时的书会降低阅读体验，也占用有限空间", explanation: "这一理由直接说明为什么要淘汰破损、过时的书，与观点联系最紧密。" },
+
+  "G5:数学": { subject: "数学", knowledgePoint: "两步应用题", type: "single_choice", difficulty: 2, source: "local_core", title: "两步解决问题", prompt: "图书角原有36本故事书，又放入18本，平均摆在6层。每层放几本？", visual: "📚（36＋18）÷6", options: ["8本", "9本", "12本"], answer: "9本", explanation: "先求总数：36＋18＝54，再平均分：54÷6＝9。" },
+  "G6:数学": { subject: "数学", knowledgePoint: "小数乘法应用", type: "single_choice", difficulty: 2, source: "local_core", title: "小数生活题", prompt: "一盒彩笔12.5元，买4盒需要多少钱？", visual: "12.5 × 4", options: ["40元", "50元", "52元"], answer: "50元", explanation: "12.5×4＝50，注意小数点的位置。" },
+  "G7:数学": { subject: "数学", knowledgePoint: "分数应用", type: "single_choice", difficulty: 2, source: "local_core", title: "分数与实际数量", prompt: "合唱队有40人，其中3/5是女生。女生有多少人？", visual: "40 × 3/5", options: ["16人", "24人", "30人"], answer: "24人", explanation: "求40的3/5：40÷5×3＝24。" },
+  "G8:数学": { subject: "数学", knowledgePoint: "百分数综合应用", type: "single_choice", difficulty: 3, source: "local_core", title: "折扣中的数学", prompt: "一本书原价80元，先打九折，再使用5元优惠券，实际支付多少元？", visual: "原价80元 → 九折 → 再减5元", options: ["67元", "68元", "72元"], answer: "67元", explanation: "九折后是80×90%＝72元，再减5元，实际支付67元。" },
+
+  "G5:英语": { subject: "英语", knowledgePoint: "一般现在时", type: "single_choice", difficulty: 2, source: "local_core", title: "Daily routines", prompt: "Choose the correct sentence.", visual: "Tom 🚌 every day", options: ["Tom go to school by bus every day.", "Tom goes to school by bus every day.", "Tom going to school by bus every day."], answer: "Tom goes to school by bus every day.", explanation: "Tom 是第三人称单数，一般现在时中 go 要变成 goes。" },
+  "G6:英语": { subject: "英语", knowledgePoint: "现在进行时", type: "single_choice", difficulty: 2, source: "local_core", title: "What is happening?", prompt: "Look! The children ____ a science experiment now.", visual: "🧒🧪👧  right now", options: ["do", "are doing", "did"], answer: "are doing", explanation: "Look 和 now 提示动作正在发生，主语 children 是复数，用 are doing。" },
+  "G7:英语": { subject: "英语", knowledgePoint: "一般过去时语境", type: "single_choice", difficulty: 2, source: "local_core", title: "Yesterday's trip", prompt: "Yesterday we ____ the museum and ____ many old pictures.", visual: "Yesterday 🏛️ 🖼️", options: ["visit; see", "visited; saw", "are visiting; seeing"], answer: "visited; saw", explanation: "Yesterday 表示过去，visit 用 visited，see 的过去式是不规则变化 saw。" },
+  "G8:英语": { subject: "英语", knowledgePoint: "短文推断与计划变化", type: "single_choice", difficulty: 3, source: "local_core", title: "Read and infer", prompt: "The school nature club planned to clean the river bank on Saturday. Because heavy rain is expected, the club moved the activity to Sunday. Lucy can only join on Saturday. What is most likely true?", visual: "📅 Saturday → heavy rain → activity moved to Sunday", options: ["Lucy may miss the activity.", "The club will go on Saturday as planned.", "Lucy moved the activity to Sunday."], answer: "Lucy may miss the activity.", explanation: "活动改到星期日，而 Lucy 只能星期六参加，因此她很可能无法参加。这个问题需要整合三条信息后推断。" },
+
+  "G8:科学": { subject: "科学", knowledgePoint: "控制变量实验", type: "single_choice", difficulty: 3, source: "local_core", title: "设计公平实验", prompt: "要研究“光照是否影响绿豆苗生长”，下面哪种设计最合理？", visual: "研究一个因素时，其他条件应尽量相同。", options: ["两盆相同豆苗，水和温度相同，一盆有光、一盆避光", "一盆多浇水并晒太阳，另一盆少浇水且避光", "用绿豆苗和仙人掌比较"], answer: "两盆相同豆苗，水和温度相同，一盆有光、一盆避光", explanation: "只改变光照条件，其他条件保持相同，才能较可靠地判断光照的影响。" },
+  "G8:阅读与表达": { subject: "阅读与表达", knowledgePoint: "信息整合与推断", type: "single_choice", difficulty: 3, source: "local_core", title: "整合多条信息", prompt: "通知写道：“周五的义卖改到室内体育馆，时间不变；易碎物品请加固包装。”小航准备周五下午带玻璃手工作品参加。他最需要做什么？", visual: "地点改变，时间不变，还要注意物品特点。", options: ["改到周六再去", "按原时间去体育馆并加固包装", "仍去操场且不用包装"], answer: "按原时间去体育馆并加固包装", explanation: "需要同时利用“地点改变”“时间不变”和“易碎物品加固”三条信息。" },
+};
+
 export function getDailyQuestion(index: number) {
   return dailyQuestions[index] ?? dailyQuestions[0];
 }
 
 export function getCourseQuestion(courseName: string, grade: string): QuestionItem {
-  const source = grade === "G1" || grade === "G2" ? preschoolQuestions[courseName] : primaryQuestions[courseName];
+  const source = gradeSpecificQuestions[`${grade}:${courseName}`] ?? (grade === "G1" || grade === "G2" ? preschoolQuestions[courseName] : primaryQuestions[courseName]);
   const fallback = preschoolQuestions["英语兴趣"];
   const question = source ?? fallback;
   return { ...question, id: `${grade.toLowerCase()}-${courseName}`, grade, eyebrow: `${grade} · ${courseName}` };

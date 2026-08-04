@@ -206,7 +206,13 @@ function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grad
     "阅读与表达": ["从句子里找线索", "概括故事的主要内容", "说清楚自己的观点", "写一段观察记录"],
     "综合素养": ["先倾听再表达", "安排我的学习时间", "生活中的分类", "合作解决一个问题"],
   };
-  const lessons = lessonNames[course.name] ?? ["第一课：认识新知识", "第二课：动手练一练", "第三课：生活中找一找", "第四课：闯关复习"];
+  let lessons = lessonNames[course.name] ?? ["第一课：认识新知识", "第二课：动手练一练", "第三课：生活中找一找", "第四课：闯关复习"];
+  if (course.name === "英语" && grade.id === "G5") lessons = ["一般现在时与日常作息", "第三人称单数变化", "读懂校园活动对话", "写出我的一天"];
+  if (course.name === "英语" && grade.id === "G6") lessons = ["现在正在发生什么", "一般现在时与现在进行时", "听懂方向和地点", "阅读一封简短邮件"];
+  if (course.name === "英语" && grade.id === "G7") lessons = ["用过去时讲一次旅行", "规则与不规则动词", "比较人物和事物", "从短文中提取关键信息"];
+  if (course.name === "英语" && grade.id === "G8") lessons = ["整合信息并作出推断", "计划、变化与原因", "在语境中判断时态", "阅读短文并概括主旨"];
+  if (course.name === "数学" && grade.id === "G8") lessons = ["百分数与折扣综合应用", "比与比例解决问题", "圆的周长和面积", "用方程表示数量关系"];
+  if (course.name === "语文" && grade.id === "G8") lessons = ["判断观点与支撑依据", "概括段落和文章主旨", "品味关键语句的表达效果", "根据材料表达完整观点"];
 
   return <div className="course-detail">
     <button className="course-back" onClick={onBack} type="button">← 返回课程中心</button>
