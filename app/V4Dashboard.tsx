@@ -30,10 +30,34 @@ const tasks = [
 ];
 
 const questions: DemoQuestion[] = [
-  { title: "字母探险", eyebrow: "英语兴趣 · 字母认识", prompt: "哪一个是大写字母 M？", visual: "moon · 月亮", options: ["M", "N", "W"], answer: "M", explanation: "M 有两座尖尖的小山。M is for moon。" },
+  { title: "字母探险", eyebrow: "英语兴趣 · 大小写配对", prompt: "哪一组是大写 M 和小写 m？", visual: "M m · moon 🌙", options: ["M m", "N n", "W w"], answer: "M m", explanation: "大写 M 和小写 m 是一对。moon 的第一个字母就是 m。" },
   { title: "数学小站", eyebrow: "数学 · 图形规律", prompt: "接下来应该是哪一种颜色？", visual: "🔵 🟡 🔵 🟡 ？", options: ["🔵", "🟡", "🟢"], answer: "🔵", explanation: "蓝色和黄色轮流出现，黄色后面应该是蓝色。" },
   { title: "故事树屋", eyebrow: "阅读 · 故事理解", prompt: "小种子想要去哪里旅行？", visual: "🌱 乘着风，飞过小河和山坡。", options: ["森林", "大海", "月亮"], answer: "森林", explanation: "故事里的小种子跟着风，最后落在森林边的草地上。" },
 ];
+
+function getCourseQuestion(course: Course, grade: string): DemoQuestion {
+  const preschool: Record<string, DemoQuestion> = {
+    "语言表达": { title: "把话说完整", eyebrow: `${grade} · 语言表达`, prompt: "看到小兔在浇花，哪句话说得最完整？", visual: "🐰 💧 🌷", options: ["小兔。", "浇花。", "小兔正在给花浇水。"], answer: "小兔正在给花浇水。", explanation: "完整的话要说清楚“谁、在做什么”。" },
+    "数量与空间": { title: "数量小侦探", eyebrow: `${grade} · 数量与空间`, prompt: "草地上一共有几只蝴蝶？", visual: "🦋  🦋  🦋", options: ["2只", "3只", "4只"], answer: "3只", explanation: "按顺序点数：1、2、3，一共有3只蝴蝶。" },
+    "科学探索": { title: "生命观察站", eyebrow: `${grade} · 科学探索`, prompt: "哪一样东西会慢慢长大？", visual: "🌱  🪨  🧸", options: ["小树苗", "石头", "玩具熊"], answer: "小树苗", explanation: "小树苗是有生命的，需要阳光和水，也会慢慢长大。" },
+    "健康习惯": { title: "干净小手", eyebrow: `${grade} · 健康习惯`, prompt: "准备吃水果前，应该先做什么？", visual: "🍎  🙌  💧", options: ["先洗手", "先玩玩具", "直接吃"], answer: "先洗手", explanation: "吃东西前认真洗手，可以减少细菌进入身体。" },
+    "社会认知": { title: "友好小伙伴", eyebrow: `${grade} · 社会认知`, prompt: "不小心碰倒朋友的积木，怎么做更合适？", visual: "🧱 💥 🙂", options: ["马上跑开", "说对不起并帮忙搭好", "怪朋友挡路"], answer: "说对不起并帮忙搭好", explanation: "承认不小心并一起解决问题，是友好、负责的做法。" },
+    "艺术创造": { title: "颜色魔法", eyebrow: `${grade} · 艺术创造`, prompt: "黄色和蓝色混在一起，通常会变成什么颜色？", visual: "🟡 + 🔵 = ？", options: ["绿色", "红色", "白色"], answer: "绿色", explanation: "颜料中的黄色和蓝色混合，通常会得到绿色。" },
+    "英语兴趣": { title: "字母好朋友", eyebrow: `${grade} · 英语兴趣`, prompt: "哪一组是大写 A 和小写 a？", visual: "A a · apple 🍎", options: ["A a", "A d", "B b"], answer: "A a", explanation: "A 和 a 是同一个字母的大小写，apple 以 a 开头。" },
+  };
+
+  const primary: Record<string, DemoQuestion> = {
+    "语文": { title: "词语小森林", eyebrow: `${grade} · 语文`, prompt: "哪一个词最适合形容春天的小草？", visual: "春风吹来，小草从土里探出头。", options: ["嫩绿", "漆黑", "冰冷"], answer: "嫩绿", explanation: "春天刚长出的小草颜色浅而鲜亮，用“嫩绿”最合适。" },
+    "数学": { title: "生活数学", eyebrow: `${grade} · 数学`, prompt: "小狗有8块积木，送给小兔3块，还剩几块？", visual: "🧱 × 8  −  🧱 × 3", options: ["5块", "6块", "11块"], answer: "5块", explanation: "求剩下的数量用减法：8−3=5。" },
+    "英语兴趣": { title: "声音与字母", eyebrow: `${grade} · 英语兴趣`, prompt: "哪个单词以字母 B 的声音开头？", visual: "B b", options: ["ball ⚽", "cat 🐱", "sun ☀️"], answer: "ball ⚽", explanation: "ball 的第一个字母是 b，读音从 /b/ 开始。" },
+    "英语": { title: "英语句子", eyebrow: `${grade} · 英语`, prompt: "“我喜欢苹果”用英语怎么说？", visual: "我 ❤️ 🍎", options: ["I like apples.", "I see a dog.", "This is blue."], answer: "I like apples.", explanation: "I like... 表示“我喜欢……”，apples 表示苹果。" },
+    "科学": { title: "科学观察", eyebrow: `${grade} · 科学`, prompt: "植物的根通常从哪里吸收水分？", visual: "☀️  🌱  💧", options: ["土壤", "空气", "花瓣"], answer: "土壤", explanation: "植物的根扎在土壤里，主要从土壤中吸收水和无机盐。" },
+    "阅读与表达": { title: "读懂一句话", eyebrow: `${grade} · 阅读与表达`, prompt: "“乌云越来越厚，小蚂蚁忙着搬家。”这句话暗示什么？", visual: "☁️ 🐜 🏠", options: ["可能要下雨", "太阳要出来", "冬天已经到了"], answer: "可能要下雨", explanation: "乌云变厚和蚂蚁搬家都是下雨前常见的现象线索。" },
+    "综合素养": { title: "解决小问题", eyebrow: `${grade} · 综合素养`, prompt: "和同学意见不一样时，先怎么做更合适？", visual: "🧒 💬 👧", options: ["认真听完再说明想法", "大声打断", "马上离开"], answer: "认真听完再说明想法", explanation: "先倾听、再表达，能帮助双方理解彼此并一起解决问题。" },
+  };
+
+  return (grade === "G1" || grade === "G2" ? preschool[course.name] : primary[course.name]) ?? questions[0];
+}
 
 const products = [
   { name: "首级永久版", price: "29.9", note: "任选1个等级 · 1个孩子", accent: false },
@@ -69,7 +93,8 @@ export function V4Dashboard() {
   const [activeNav, setActiveNav] = useState("首页");
   const [selectedGrade, setSelectedGrade] = useState("G3");
   const [showPlans, setShowPlans] = useState(false);
-  const [activeTask, setActiveTask] = useState<number | null>(null);
+  const [activeQuestion, setActiveQuestion] = useState<DemoQuestion | null>(null);
+  const [activeTaskIndex, setActiveTaskIndex] = useState<number | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answerState, setAnswerState] = useState<"correct" | "wrong" | null>(null);
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
@@ -78,20 +103,30 @@ export function V4Dashboard() {
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
 
   const openTask = (index: number) => {
-    setActiveTask(index);
+    setActiveQuestion(questions[index]);
+    setActiveTaskIndex(index);
+    setSelectedAnswer(null);
+    setAnswerState(null);
+  };
+
+  const openCourse = (course: Course) => {
+    setActiveQuestion(getCourseQuestion(course, selectedGrade));
+    setActiveTaskIndex(null);
     setSelectedAnswer(null);
     setAnswerState(null);
   };
 
   const checkAnswer = () => {
-    if (activeTask === null || !selectedAnswer) return;
-    setAnswerState(selectedAnswer === questions[activeTask].answer ? "correct" : "wrong");
+    if (!activeQuestion || !selectedAnswer) return;
+    setAnswerState(selectedAnswer === activeQuestion.answer ? "correct" : "wrong");
   };
 
   const finishTask = () => {
-    if (activeTask === null) return;
-    setCompletedTasks((current) => current.includes(activeTask) ? current : [...current, activeTask]);
-    setActiveTask(null);
+    if (activeTaskIndex !== null) {
+      setCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
+    }
+    setActiveQuestion(null);
+    setActiveTaskIndex(null);
   };
 
   const goTo = (label: string) => {
@@ -154,14 +189,14 @@ export function V4Dashboard() {
               <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
               <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => setSelectedGrade(grade.id)} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
               <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div><button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button></div>
-              <div className="course-grid">{courses.map((course, index) => <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span>已完成 {course.progress}%</span><button onClick={() => index < 3 ? openTask(index) : goTo("今日学习")} type="button">进入课程 →</button></footer></article>)}</div>
+              <div className="course-grid">{courses.map((course) => <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span>已完成 {course.progress}%</span><button onClick={() => openCourse(course)} type="button">进入课程 →</button></footer></article>)}</div>
             </section>
           )}
 
           {!["首页", "今日学习", "课程中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
-          {activeTask !== null && <LessonModal question={questions[activeTask]} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => setActiveTask(null)} />}
+          {activeQuestion && <LessonModal question={activeQuestion} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); }} />}
         </div>
       </main>
 
