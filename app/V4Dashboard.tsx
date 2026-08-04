@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { getCourseQuestion, getDailyQuestion, type QuestionItem } from "../data/questionBank";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
-type DemoQuestion = { title: string; eyebrow: string; prompt: string; visual: string; options: string[]; answer: string; explanation: string };
 
 const grades: Grade[] = [
   { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯" },
@@ -29,35 +29,6 @@ const tasks = [
   { icon: "📚", title: "故事树屋", detail: "《会飞的小种子》", minutes: "7分钟", color: "pink" },
 ];
 
-const questions: DemoQuestion[] = [
-  { title: "字母探险", eyebrow: "英语兴趣 · 大小写配对", prompt: "哪一组是大写 M 和小写 m？", visual: "M m · moon 🌙", options: ["M m", "N n", "W w"], answer: "M m", explanation: "大写 M 和小写 m 是一对。moon 的第一个字母就是 m。" },
-  { title: "数学小站", eyebrow: "数学 · 图形规律", prompt: "接下来应该是哪一种颜色？", visual: "🔵 🟡 🔵 🟡 ？", options: ["🔵", "🟡", "🟢"], answer: "🔵", explanation: "蓝色和黄色轮流出现，黄色后面应该是蓝色。" },
-  { title: "故事树屋", eyebrow: "阅读 · 故事理解", prompt: "小种子想要去哪里旅行？", visual: "🌱 乘着风，飞过小河和山坡。", options: ["森林", "大海", "月亮"], answer: "森林", explanation: "故事里的小种子跟着风，最后落在森林边的草地上。" },
-];
-
-function getCourseQuestion(course: Course, grade: string): DemoQuestion {
-  const preschool: Record<string, DemoQuestion> = {
-    "语言表达": { title: "把话说完整", eyebrow: `${grade} · 语言表达`, prompt: "看到小兔在浇花，哪句话说得最完整？", visual: "🐰 💧 🌷", options: ["小兔。", "浇花。", "小兔正在给花浇水。"], answer: "小兔正在给花浇水。", explanation: "完整的话要说清楚“谁、在做什么”。" },
-    "数量与空间": { title: "数量小侦探", eyebrow: `${grade} · 数量与空间`, prompt: "草地上一共有几只蝴蝶？", visual: "🦋  🦋  🦋", options: ["2只", "3只", "4只"], answer: "3只", explanation: "按顺序点数：1、2、3，一共有3只蝴蝶。" },
-    "科学探索": { title: "生命观察站", eyebrow: `${grade} · 科学探索`, prompt: "哪一样东西会慢慢长大？", visual: "🌱  🪨  🧸", options: ["小树苗", "石头", "玩具熊"], answer: "小树苗", explanation: "小树苗是有生命的，需要阳光和水，也会慢慢长大。" },
-    "健康习惯": { title: "干净小手", eyebrow: `${grade} · 健康习惯`, prompt: "准备吃水果前，应该先做什么？", visual: "🍎  🙌  💧", options: ["先洗手", "先玩玩具", "直接吃"], answer: "先洗手", explanation: "吃东西前认真洗手，可以减少细菌进入身体。" },
-    "社会认知": { title: "友好小伙伴", eyebrow: `${grade} · 社会认知`, prompt: "不小心碰倒朋友的积木，怎么做更合适？", visual: "🧱 💥 🙂", options: ["马上跑开", "说对不起并帮忙搭好", "怪朋友挡路"], answer: "说对不起并帮忙搭好", explanation: "承认不小心并一起解决问题，是友好、负责的做法。" },
-    "艺术创造": { title: "颜色魔法", eyebrow: `${grade} · 艺术创造`, prompt: "黄色和蓝色混在一起，通常会变成什么颜色？", visual: "🟡 + 🔵 = ？", options: ["绿色", "红色", "白色"], answer: "绿色", explanation: "颜料中的黄色和蓝色混合，通常会得到绿色。" },
-    "英语兴趣": { title: "字母好朋友", eyebrow: `${grade} · 英语兴趣`, prompt: "哪一组是大写 A 和小写 a？", visual: "A a · apple 🍎", options: ["A a", "A d", "B b"], answer: "A a", explanation: "A 和 a 是同一个字母的大小写，apple 以 a 开头。" },
-  };
-
-  const primary: Record<string, DemoQuestion> = {
-    "语文": { title: "词语小森林", eyebrow: `${grade} · 语文`, prompt: "哪一个词最适合形容春天的小草？", visual: "春风吹来，小草从土里探出头。", options: ["嫩绿", "漆黑", "冰冷"], answer: "嫩绿", explanation: "春天刚长出的小草颜色浅而鲜亮，用“嫩绿”最合适。" },
-    "数学": { title: "生活数学", eyebrow: `${grade} · 数学`, prompt: "小狗有8块积木，送给小兔3块，还剩几块？", visual: "🧱 × 8  −  🧱 × 3", options: ["5块", "6块", "11块"], answer: "5块", explanation: "求剩下的数量用减法：8−3=5。" },
-    "英语兴趣": { title: "声音与字母", eyebrow: `${grade} · 英语兴趣`, prompt: "哪个单词以字母 B 的声音开头？", visual: "B b", options: ["ball ⚽", "cat 🐱", "sun ☀️"], answer: "ball ⚽", explanation: "ball 的第一个字母是 b，读音从 /b/ 开始。" },
-    "英语": { title: "英语句子", eyebrow: `${grade} · 英语`, prompt: "“我喜欢苹果”用英语怎么说？", visual: "我 ❤️ 🍎", options: ["I like apples.", "I see a dog.", "This is blue."], answer: "I like apples.", explanation: "I like... 表示“我喜欢……”，apples 表示苹果。" },
-    "科学": { title: "科学观察", eyebrow: `${grade} · 科学`, prompt: "植物的根通常从哪里吸收水分？", visual: "☀️  🌱  💧", options: ["土壤", "空气", "花瓣"], answer: "土壤", explanation: "植物的根扎在土壤里，主要从土壤中吸收水和无机盐。" },
-    "阅读与表达": { title: "读懂一句话", eyebrow: `${grade} · 阅读与表达`, prompt: "“乌云越来越厚，小蚂蚁忙着搬家。”这句话暗示什么？", visual: "☁️ 🐜 🏠", options: ["可能要下雨", "太阳要出来", "冬天已经到了"], answer: "可能要下雨", explanation: "乌云变厚和蚂蚁搬家都是下雨前常见的现象线索。" },
-    "综合素养": { title: "解决小问题", eyebrow: `${grade} · 综合素养`, prompt: "和同学意见不一样时，先怎么做更合适？", visual: "🧒 💬 👧", options: ["认真听完再说明想法", "大声打断", "马上离开"], answer: "认真听完再说明想法", explanation: "先倾听、再表达，能帮助双方理解彼此并一起解决问题。" },
-  };
-
-  return (grade === "G1" || grade === "G2" ? preschool[course.name] : primary[course.name]) ?? questions[0];
-}
 
 const products = [
   { name: "首级永久版", price: "29.9", note: "任选1个等级 · 1个孩子", accent: false },
@@ -93,8 +64,9 @@ export function V4Dashboard() {
   const [activeNav, setActiveNav] = useState("首页");
   const [selectedGrade, setSelectedGrade] = useState("G3");
   const [showPlans, setShowPlans] = useState(false);
-  const [activeQuestion, setActiveQuestion] = useState<DemoQuestion | null>(null);
+  const [activeQuestion, setActiveQuestion] = useState<QuestionItem | null>(null);
   const [activeTaskIndex, setActiveTaskIndex] = useState<number | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answerState, setAnswerState] = useState<"correct" | "wrong" | null>(null);
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
@@ -103,14 +75,14 @@ export function V4Dashboard() {
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
 
   const openTask = (index: number) => {
-    setActiveQuestion(questions[index]);
+    setActiveQuestion(getDailyQuestion(index));
     setActiveTaskIndex(index);
     setSelectedAnswer(null);
     setAnswerState(null);
   };
 
   const openCourse = (course: Course) => {
-    setActiveQuestion(getCourseQuestion(course, selectedGrade));
+    setActiveQuestion(getCourseQuestion(course.name, selectedGrade));
     setActiveTaskIndex(null);
     setSelectedAnswer(null);
     setAnswerState(null);
@@ -131,6 +103,7 @@ export function V4Dashboard() {
 
   const goTo = (label: string) => {
     setActiveNav(label);
+    if (label !== "课程中心") setSelectedCourse(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -186,10 +159,16 @@ export function V4Dashboard() {
 
           {activeNav === "课程中心" && (
             <section className="page-surface course-page">
-              <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
-              <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => setSelectedGrade(grade.id)} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
-              <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div><button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button></div>
-              <div className="course-grid">{courses.map((course) => <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span>已完成 {course.progress}%</span><button onClick={() => openCourse(course)} type="button">进入课程 →</button></footer></article>)}</div>
+              {selectedCourse ? (
+                <CourseDetail course={selectedCourse} grade={currentGrade} onBack={() => setSelectedCourse(null)} onStart={() => openCourse(selectedCourse)} />
+              ) : (
+                <>
+                  <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
+                  <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => { setSelectedGrade(grade.id); setSelectedCourse(null); }} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
+                  <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div><button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button></div>
+                  <div className="course-grid">{courses.map((course) => <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span>已完成 {course.progress}%</span><button onClick={() => { setSelectedCourse(course); window.scrollTo({ top: 0, behavior: "smooth" }); }} type="button">进入课程 →</button></footer></article>)}</div>
+                </>
+              )}
             </section>
           )}
 
@@ -211,6 +190,33 @@ function GradeRoute({ currentGrade, selectedGrade, onSelect }: { currentGrade: G
   return <section className="grade-section"><div className="section-heading"><div><span className="section-kicker">为孩子选择合适的起点</span><h2>八级成长路线</h2></div><div className="current-pill">当前：{currentGrade.icon} {currentGrade.id} · {currentGrade.school}</div></div><div className="grade-grid">{grades.map((grade) => <button className={`grade-card ${grade.color} ${selectedGrade === grade.id ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} type="button"><span className="grade-icon">{grade.icon}</span><strong>{grade.id}</strong><b>{grade.school}</b><small>{grade.age}</small><p>{grade.focus}</p>{selectedGrade === grade.id && <i>已选择</i>}</button>)}</div></section>;
 }
 
+function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grade: Grade; onBack: () => void; onStart: () => void }) {
+  const lessonNames: Record<string, string[]> = {
+    "语言表达": ["看图说一句完整的话", "按顺序讲清楚", "听故事回答问题", "介绍我喜欢的东西"],
+    "数量与空间": ["点一点：5以内数量", "认识圆形和方形", "上下左右在哪里", "发现重复的规律"],
+    "科学探索": ["什么东西会长大", "植物需要什么", "天气观察日记", "会浮还是会沉"],
+    "健康习惯": ["吃东西前先洗手", "保护牙齿的方法", "安全过马路", "运动后补充水分"],
+    "社会认知": ["不小心时说对不起", "轮流玩更开心", "认识自己的情绪", "一起完成小任务"],
+    "艺术创造": ["黄色和蓝色的魔法", "听节奏拍一拍", "用形状拼小动物", "画出快乐的一天"],
+    "英语兴趣": ["A a 和 apple", "B b 和 ball", "C c 和 cat", "唱一首字母歌"],
+    "英语": ["I like... 我喜欢", "This is... 这是什么", "我的家庭成员", "读懂一段小短文"],
+    "语文": ["春天里的好词语", "读懂一句完整的话", "看图写两句话", "故事人物做了什么"],
+    "数学": ["积木还剩多少块", "用图画理解应用题", "认识常见图形", "发现数列规律"],
+    "科学": ["植物怎样吸收水", "光和影子的变化", "声音是怎样产生的", "记录一次小实验"],
+    "阅读与表达": ["从句子里找线索", "概括故事的主要内容", "说清楚自己的观点", "写一段观察记录"],
+    "综合素养": ["先倾听再表达", "安排我的学习时间", "生活中的分类", "合作解决一个问题"],
+  };
+  const lessons = lessonNames[course.name] ?? ["第一课：认识新知识", "第二课：动手练一练", "第三课：生活中找一找", "第四课：闯关复习"];
+
+  return <div className="course-detail">
+    <button className="course-back" onClick={onBack} type="button">← 返回课程中心</button>
+    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 共{course.units}课</p></div><button onClick={onStart} type="button">开始第1课 →</button></header>
+    <div className="course-detail-summary"><div><strong>{course.progress}%</strong><span>当前进度</span></div><div><strong>约8分钟</strong><span>每课时长</span></div><div><strong>本地核心题库</strong><span>内容来源</span></div></div>
+    <section className="unit-panel"><div className="section-heading compact"><div><span className="section-kicker">循序渐进，不用一次学完</span><h2>第一单元</h2></div><span className="task-count">1 / {lessons.length} 开放</span></div><div className="unit-list">{lessons.map((lesson, index) => <article className={index === 0 ? "unit-row current" : "unit-row locked"} key={lesson}><span>{index === 0 ? "🌟" : "🌱"}</span><div><small>第 {index + 1} 课</small><strong>{lesson}</strong><p>{index === 0 ? "讲解 + 互动练习 + 即时解析" : "完成上一课后按顺序开放"}</p></div>{index === 0 ? <button onClick={onStart} type="button">开始学习</button> : <em>即将开放</em>}</article>)}</div></section>
+    <aside className="bank-note"><span>🧠</span><div><strong>这节课已经使用统一题库格式</strong><p>题目包含等级、学科、知识点、难度、答案和解析，以后可以直接接入智能出题与错题复习。</p></div></aside>
+  </div>;
+}
+
 function TaskPanel({ completedTasks, onOpen, standalone = false }: { completedTasks: number[]; onOpen: (index: number) => void; standalone?: boolean }) {
   return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">系统已经准备好了</span><h2>今日学习任务</h2></div><span className="task-count">{completedTasks.length} / 3 完成</span></div><div className="task-list">{tasks.map((task, index) => { const done = completedTasks.includes(index); return <button className={done ? "task-row done" : "task-row"} key={task.title} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${task.color}`}>{done ? "✓" : task.icon}</span><span><strong>{task.title}</strong><small>{done ? "完成得很棒，可以再次练习" : task.detail}</small></span><em>{task.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></div>;
 }
@@ -223,7 +229,7 @@ function PlanModal({ onClose }: { onClose: () => void }) {
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section className="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-title" onMouseDown={(event) => event.stopPropagation()}><button className="close" aria-label="关闭" onClick={onClose} type="button">×</button><span className="section-kicker">没有限时试用，购买后永久使用</span><h2 id="plan-title">选择适合你家的成长方案</h2><div className="plan-grid">{products.map((product) => <article className={product.accent ? "plan-card featured" : "plan-card"} key={product.name}>{product.accent && <span className="recommended">最受欢迎</span>}<h3>{product.name}</h3><strong><small>¥</small>{product.price}</strong><p>{product.note}</p><button type="button">选择此方案</button></article>)}</div><p className="upgrade-note">以后每增加一个等级仅需 ¥19.9，已支付金额可抵扣全级版。</p></section></div>;
 }
 
-function LessonModal({ question, selectedAnswer, answerState, onSelect, onCheck, onFinish, onClose }: { question: DemoQuestion; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void; onCheck: () => void; onFinish: () => void; onClose: () => void }) {
+function LessonModal({ question, selectedAnswer, answerState, onSelect, onCheck, onFinish, onClose }: { question: QuestionItem; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void; onCheck: () => void; onFinish: () => void; onClose: () => void }) {
   return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>1 / 1</em></div><div className="lesson-progress"><i /></div><div className="question-card"><span className="question-visual">{question.visual}</span><h2>{question.prompt}</h2><div className="answer-grid">{question.options.map((option) => <button className={`${selectedAnswer === option ? "selected" : ""} ${answerState && option === question.answer ? "correct" : ""} ${answerState === "wrong" && selectedAnswer === option ? "wrong" : ""}`} key={option} onClick={() => onSelect(option)} disabled={answerState !== null} type="button">{option}</button>)}</div>{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p></div></div>}</div><button className="lesson-submit" disabled={!selectedAnswer} onClick={answerState ? onFinish : onCheck} type="button">{answerState ? "完成任务，获得5金币" : "提交答案"}</button></section></div>;
 }
 
