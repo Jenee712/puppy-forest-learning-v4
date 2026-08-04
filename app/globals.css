@@ -61,6 +61,62 @@ main { min-width: 0; }
 .parent-button { background: var(--forest); color: white; border-color: var(--forest); }
 .content { width: min(1340px, 100%); margin: 0 auto; padding: 28px clamp(18px,4vw,54px) 60px; }
 
+.visual-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #cfe5d4;
+  border-radius: 34px;
+  background: #e5f4f7;
+  box-shadow: var(--shadow);
+  isolation: isolate;
+}
+.visual-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.55);
+  border-radius: inherit;
+}
+.visual-hero img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1200 / 630;
+  object-fit: cover;
+}
+.visual-hero-action {
+  position: absolute;
+  z-index: 3;
+  right: 24px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 13px 14px 13px 19px;
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 20px;
+  background: rgba(255,253,247,.91);
+  box-shadow: 0 14px 34px rgba(31,70,38,.2);
+  backdrop-filter: blur(14px);
+}
+.visual-hero-action span,
+.visual-hero-action strong { display: block; }
+.visual-hero-action span { color: #648061; font-size: 11px; font-weight: 750; }
+.visual-hero-action strong { margin-top: 3px; color: var(--forest-dark); font-size: 15px; }
+.visual-hero-action button {
+  border: 0;
+  padding: 12px 17px;
+  border-radius: 14px;
+  color: white;
+  background: var(--forest);
+  box-shadow: 0 8px 16px rgba(39,93,50,.2);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.visual-hero-action button b { margin-left: 5px; }
+
 .welcome-card { min-height: 330px; position: relative; overflow: hidden; border: 1px solid #cfe5d4; border-radius: 34px; background: linear-gradient(180deg,#dff2fb 0 57%,#d8efbd 57% 100%); box-shadow: var(--shadow); }
 .welcome-copy { position: relative; z-index: 3; padding: 45px 42px; width: 58%; }
 .eyebrow,.section-kicker { display: inline-block; color: #4e8650; font-weight: 800; font-size: 13px; letter-spacing: .04em; }
@@ -115,7 +171,11 @@ main { min-width: 0; }
 }
 @media (max-width: 760px) {
   .app-shell { display:block; }.sidebar { display:none; }.topbar { height:68px; padding:0 16px; justify-content:space-between; gap:12px; }.mobile-brand { display:block; font-size:14px; }.mobile-brand span { margin-right:6px; }.progress-wrap { width:42%; font-size:10px; }.parent-button { display:none; }.coin { padding:7px 10px; font-size:11px; }.content { padding:16px 12px 94px; }
-  .welcome-card { min-height:440px; border-radius:27px; }.welcome-copy { width:100%; padding:28px 23px; }.welcome-copy h1 { font-size:35px; }.welcome-copy p { font-size:14px; line-height:1.65; }.forest-scene { top:190px; }.buddy { font-size:66px; bottom:42px; }.cat{right:58%}.dog{right:32%}.rabbit{right:6%}.sun{font-size:48px}.plane{right:25%;top:20px}.tree-a{right:72%}.tree-b{right:0}.train{font-size:30px}.cloud{display:none}
+  .visual-hero { overflow: visible; margin-bottom: 72px; border-radius: 24px; }
+  .visual-hero img { border-radius: inherit; object-fit: contain; }
+  .visual-hero-action { left: 12px; right: 12px; bottom: -58px; justify-content: space-between; gap: 10px; padding: 11px 11px 11px 15px; border-radius: 17px; }
+  .visual-hero-action strong { font-size: 13px; }
+  .visual-hero-action button { padding: 10px 12px; white-space: nowrap; }
   .grade-section,.task-panel { padding:20px 15px; border-radius:23px; }.section-heading { align-items:flex-start; flex-direction:column; }.grade-grid { margin-right:-15px; }.grade-card { min-height:176px; }.lower-grid { gap:14px; }.task-row { grid-template-columns:44px 1fr auto; gap:10px; }.task-row em { display:none; }.task-icon{width:44px;height:44px}.smart-panel { padding:25px 20px; border-radius:23px; }
   .mobile-nav { position:fixed; display:grid; grid-template-columns:repeat(5,1fr); left:0; right:0; bottom:0; z-index:50; padding:8px 6px max(8px,env(safe-area-inset-bottom)); background:rgba(255,253,247,.95); border-top:1px solid #dfe9d8; backdrop-filter:blur(16px); }.mobile-nav button { border:0; background:none; color:#738871; font-size:9px; font-weight:700; }.mobile-nav button span { display:block; font-size:20px; margin-bottom:2px; }.mobile-nav button.active { color:var(--forest); }
   .plan-modal { padding:28px 16px 20px; max-height:92vh; overflow:auto; }.plan-modal h2 { font-size:23px; }.plan-grid { grid-template-columns:1fr; }.plan-card.featured { transform:none; }.plan-card { padding:20px 14px 14px; }.plan-card p { min-height:0; }

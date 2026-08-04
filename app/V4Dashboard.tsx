@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 
 type Grade = {
@@ -117,26 +118,20 @@ export function V4Dashboard() {
         </header>
 
         <div className="content">
-          <section className="welcome-card">
-            <div className="cloud cloud-one" />
-            <div className="cloud cloud-two" />
-            <div className="welcome-copy">
-              <span className="eyebrow">🚂 今天的森林学习站</span>
-              <h1>下午好，小鹿 Leo！</h1>
-              <p>小猫、小狗和小兔已经准备好，陪你完成今天的三段学习旅程。</p>
-              <div className="welcome-stats">
-                <span>📅 第 35 天</span><span>🔥 连续 6 天</span><span>🎯 3 个任务</span>
+          <section className="visual-hero" aria-label="小狗的森林学堂主视觉">
+            <Image
+              src="/og.png"
+              alt="小狗、小猫和小兔在森林里一起学习，小火车从身边经过"
+              width={1200}
+              height={630}
+              priority
+            />
+            <div className="visual-hero-action">
+              <div>
+                <span>下午好，小鹿 Leo</span>
+                <strong>今天有 3 个森林任务</strong>
               </div>
-            </div>
-            <div className="forest-scene" aria-label="小动物学习伙伴">
-              <span className="sun">☀️</span>
-              <span className="plane">✈️</span>
-              <span className="tree tree-a">🌳</span>
-              <span className="tree tree-b">🌲</span>
-              <span className="buddy cat">🐱</span>
-              <span className="buddy dog">🐶</span>
-              <span className="buddy rabbit">🐰</span>
-              <span className="train">🚂</span>
+              <button type="button">开始学习 <b>→</b></button>
             </div>
           </section>
 
