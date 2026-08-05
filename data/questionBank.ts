@@ -34,6 +34,9 @@ export type QuestionItem = {
     relation: string;
   };
   matchingPairs?: Array<{ left: string; right: string }>;
+  activityKind?: "practice" | "phonics" | "trace" | "cn_to_en" | "en_to_cn" | "storybook" | "reading" | "grammar";
+  estimatedMinutes?: number;
+  traceLetter?: string;
 };
 
 const dailyQuestions: QuestionItem[] = [

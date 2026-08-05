@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getCourseQuestions, getDailyQuestion, type QuestionItem } from "../data/questionBank";
+import type { PointerEvent as ReactPointerEvent } from "react";
+import { getCourseQuestions, type QuestionItem } from "../data/questionBank";
+import { getDailyCurriculum } from "../data/dailyCurriculum";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
@@ -24,11 +26,13 @@ const navGroups = [
   { label: "森林乐园", items: [["🌷", "复习花园"], ["✨", "贴纸册"], ["🛡️", "家长中心"]] },
 ];
 
-const taskLooks = [
-  { icon: "📚", minutes: "7分钟", color: "pink" },
-  { icon: "🧮", minutes: "8分钟", color: "blue" },
-  { icon: "🔤", minutes: "6分钟", color: "yellow" },
-];
+function getTaskLook(question: QuestionItem) {
+  const looks = {
+    trace: ["✍️", "pink"], phonics: ["👂", "yellow"], cn_to_en: ["中→EN", "blue"], en_to_cn: ["EN→中", "mint"], storybook: ["📖", "lilac"], grammar: ["🧩", "peach"], reading: ["🔎", "green"], practice: [question.subject.includes("数学") || question.subject.includes("数量") ? "🧮" : "📚", "green"],
+  } as const;
+  const [icon, color] = looks[question.activityKind ?? "practice"];
+  return { icon, color, minutes: `${question.estimatedMinutes ?? 3}分钟` };
+}
 
 const SESSION_NOW = Date.now();
 
@@ -88,7 +92,10 @@ export function V4Dashboard() {
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
-  const dailyQuestions = useMemo(() => [0, 1, 2].map((index) => getDailyQuestion(index, selectedGrade)), [selectedGrade]);
+  const dailyQuestions = useMemo(() => getDailyCurriculum(selectedGrade), [selectedGrade]);
+  const dailyMinutes = useMemo(() => dailyQuestions.reduce((sum, question) => sum + (question.estimatedMinutes ?? 3), 0), [dailyQuestions]);
+  const completedMinutes = useMemo(() => completedTasks.reduce((sum, index) => sum + (dailyQuestions[index]?.estimatedMinutes ?? 0), 0), [completedTasks, dailyQuestions]);
+  const englishTaskCount = dailyQuestions.filter((question) => question.subject.includes("英语")).length;
   const pendingWrongCount = wrongRecords.filter((record) => !record.mastered).length;
 
   useEffect(() => {
@@ -219,7 +226,7 @@ export function V4Dashboard() {
       <main>
         <header className="topbar">
           <div className="mobile-brand"><span>🐶</span>森林学堂</div>
-          <div className="progress-wrap"><span>今日 {completedTasks.length * 7 + 5} / 30 分钟</span><div className="progress"><i style={{ width: `${Math.min(100, 18 + completedTasks.length * 27)}%` }} /></div></div>
+          <div className="progress-wrap"><span>今日 {completedMinutes} / {dailyMinutes} 分钟</span><div className="progress"><i style={{ width: `${Math.round(completedMinutes / dailyMinutes * 100)}%` }} /></div></div>
           <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><button className="coin" type="button">🪙 {42 + completedTasks.length * 5}</button><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
         </header>
 
@@ -228,7 +235,7 @@ export function V4Dashboard() {
             <>
               <section className="visual-hero" aria-label="小狗的森林学堂主视觉">
                 <Image src="/og.png" alt="小狗、小猫和小兔在森林里一起学习，小火车从身边经过" width={1200} height={630} priority unoptimized />
-                <div className="visual-hero-action"><div><span>下午好，小鹿 Leo</span><strong>今天有 {3 - completedTasks.length} 个森林任务</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
+                <div className="visual-hero-action"><div><span>下午好，小鹿 Leo</span><strong>今天还有 {dailyQuestions.length - completedTasks.length} 个学习站</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
               </section>
               <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={changeGrade} />
               <section className="lower-grid">
@@ -240,8 +247,9 @@ export function V4Dashboard() {
 
           {activeNav === "今日学习" && (
             <section className="page-surface today-page">
-              <PageTitle eyebrow="系统已经为孩子准备好了" title="今日学习" subtitle={`${currentGrade.id} · ${currentGrade.school} · 预计21分钟`} icon="☀️" />
-              <div className="today-summary"><div><strong>{completedTasks.length}<small>/ 3</small></strong><span>今日完成</span></div><div><strong>{42 + completedTasks.length * 5}</strong><span>森林金币</span></div><div><strong>6</strong><span>连续学习</span></div></div>
+              <PageTitle eyebrow="系统已经为孩子准备好了" title="今日学习路线" subtitle={`${currentGrade.id} · ${currentGrade.school} · ${dailyQuestions.length}站 · 预计${dailyMinutes}分钟`} icon="☀️" />
+              <div className="learning-density"><span>🇬🇧 英语 {englishTaskCount} 站</span><strong>{Math.round(englishTaskCount / dailyQuestions.length * 100)}%</strong><p>英语为主线，包含听读、双向翻译、词句训练与分级阅读。</p></div>
+              <div className="today-summary"><div><strong>{completedTasks.length}<small>/ {dailyQuestions.length}</small></strong><span>今日完成</span></div><div><strong>{42 + completedTasks.length * 5}</strong><span>森林金币</span></div><div><strong>{dailyMinutes}</strong><span>预计分钟</span></div></div>
               <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} onOpen={openTask} standalone />
               <div className="gentle-note"><span>🌿</span><div><strong>学完记得看远处、活动一下</strong><p>每完成一个任务，系统会根据表现调整下一次练习。</p></div></div>
             </section>
@@ -263,7 +271,7 @@ export function V4Dashboard() {
           )}
 
           {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} loadingId={aiLoadingId} onRetry={retryWrongQuestion} onSmartPractice={openSmartPractice} onCourse={() => goTo("课程中心")} />}
-          {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} onGarden={() => goTo("复习花园")} />}
+          {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} totalTasks={dailyQuestions.length} onGarden={() => goTo("复习花园")} />}
 
           {!["首页", "今日学习", "课程中心", "复习花园", "家长中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
@@ -322,7 +330,11 @@ function CourseDetail({ course, grade, aiLoading, onBack, onStart, onSmartStart 
 }
 
 function TaskPanel({ completedTasks, questions, onOpen, standalone = false }: { completedTasks: number[]; questions: QuestionItem[]; onOpen: (index: number) => void; standalone?: boolean }) {
-  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">系统已按当前等级匹配难度</span><h2>今日学习任务</h2></div><span className="task-count">{completedTasks.length} / 3 完成</span></div><div className="task-list">{questions.map((question, index) => { const done = completedTasks.includes(index); const look = taskLooks[index] ?? taskLooks[0]; return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.subject} · ${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></div>;
+  const groups = [
+    { label: "英语主线", note: "听 · 读 · 写 · 双向翻译", indices: questions.map((question, index) => question.subject.includes("英语") ? index : -1).filter((index) => index >= 0) },
+    { label: "综合素养", note: "语文 · 数学 · 科学与生活", indices: questions.map((question, index) => !question.subject.includes("英语") ? index : -1).filter((index) => index >= 0) },
+  ];
+  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">系统已按当前等级匹配难度</span><h2>今日学习路线</h2></div><span className="task-count">{completedTasks.length} / {questions.length} 完成</span></div>{groups.map((group) => <section className="task-group" key={group.label}><header><strong>{group.label}</strong><span>{group.note}</span><em>{group.indices.length}站</em></header><div className="task-list">{group.indices.map((index) => { const question = questions[index]; const done = completedTasks.includes(index); const look = getTaskLook(question); return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.subject} · ${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></section>)}</div>;
 }
 
 function PageTitle({ eyebrow, title, subtitle, icon }: { eyebrow: string; title: string; subtitle: string; icon: string }) {
@@ -338,7 +350,18 @@ function LessonModal({ question, notice, selectedAnswer, answerState, aiLoading,
   const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
   const promptLanguage = getTtsLanguage(question.prompt);
   const previewVocabulary = question.subject.includes("英语") ? question.vocabulary?.slice(0, 3) ?? [] : [];
-  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={promptLanguage} playbackRate={promptLanguage === "en" ? englishPlaybackRate : 1} segment="sentence" label="听题目" autoPlay={isEarlyLearner} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} playbackRate={englishPlaybackRate} segment="word" label={`听 ${item.term}`} />)}</div>}<QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}<FeedbackAudio state={answerState} /></div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">提交答案</button>}</section></div>;
+  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : `${question.estimatedMinutes ?? 3}分钟`}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className={`question-card ${question.activityKind === "storybook" ? "storybook-question" : ""}`}>{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={promptLanguage} playbackRate={promptLanguage === "en" ? englishPlaybackRate : 1} segment="sentence" label="听题目" autoPlay={isEarlyLearner} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} playbackRate={englishPlaybackRate} segment="word" label={`听 ${item.term}`} />)}</div>}{question.activityKind === "trace" ? <TracePractice letters={question.traceLetter ?? question.visual} done={selectedAnswer === "done"} onDone={() => onSelect("done")} /> : <QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />}{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}<FeedbackAudio state={answerState} /></div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">{question.activityKind === "trace" ? "完成描写" : "提交答案"}</button>}</section></div>;
+}
+
+function TracePractice({ letters, done, onDone }: { letters: string; done: boolean; onDone: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const point = (event: ReactPointerEvent<HTMLCanvasElement>) => { const canvas = canvasRef.current; if (!canvas) return [0, 0] as const; const rect = canvas.getBoundingClientRect(); return [(event.clientX - rect.left) * canvas.width / rect.width, (event.clientY - rect.top) * canvas.height / rect.height] as const; };
+  const start = (event: ReactPointerEvent<HTMLCanvasElement>) => { const context = canvasRef.current?.getContext("2d"); if (!context) return; drawingRef.current = true; const [x, y] = point(event); context.beginPath(); context.moveTo(x, y); event.currentTarget.setPointerCapture(event.pointerId); };
+  const move = (event: ReactPointerEvent<HTMLCanvasElement>) => { if (!drawingRef.current) return; const context = canvasRef.current?.getContext("2d"); if (!context) return; const [x, y] = point(event); context.lineWidth = 14; context.lineCap = "round"; context.strokeStyle = "#ef8aa8"; context.lineTo(x, y); context.stroke(); onDone(); };
+  const stop = () => { drawingRef.current = false; };
+  const clear = () => { const canvas = canvasRef.current; if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); };
+  return <section className="trace-practice"><div className="trace-board"><span>{letters}</span><canvas ref={canvasRef} width={900} height={320} onPointerDown={start} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} aria-label={`描写字母 ${letters}`} /></div><div><small>{done ? "已经留下笔迹，可以提交啦！" : "用手指或鼠标沿着浅色字母描一描"}</small><button onClick={clear} type="button">清除重写</button></div></section>;
 }
 
 function MathModel({ question }: { question: QuestionItem }) {
@@ -494,7 +517,7 @@ function playFeedbackTone(state: "correct" | "wrong") {
   }
 }
 
-function ParentCenter({ records, grade, completedTasks, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; onGarden: () => void }) {
+function ParentCenter({ records, grade, completedTasks, totalTasks, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; totalTasks: number; onGarden: () => void }) {
   const pending = records.filter((record) => !record.mastered).length;
   const mastered = records.filter((record) => record.mastered).length;
   const subjectStats = Object.entries(records.reduce<Record<string, number>>((stats, record) => {
@@ -511,7 +534,7 @@ function ParentCenter({ records, grade, completedTasks, onGarden }: { records: W
   return <section className="page-surface parent-center-page">
     <PageTitle eyebrow="家长只看结果，不需要手动整理题目" title="家长中心" subtitle={`${grade.id} · ${grade.school} · 小鹿 Leo 的学习概览`} icon="🛡️" />
     <div className="parent-hero"><div><span>🦌</span><div><small>孩子档案</small><strong>小鹿 Leo</strong><p>{grade.age} · 当前学习等级 {grade.id}</p></div></div><button onClick={onGarden} type="button">查看孩子今天的复习 →</button></div>
-    <div className="parent-metrics"><div><strong>{completedTasks}<small>/3</small></strong><span>今日任务</span></div><div><strong>{records.length}</strong><span>累计错题</span></div><div><strong>{pending}</strong><span>需要关注</span></div><div><strong>{mastered}</strong><span>已完成订正</span></div></div>
+    <div className="parent-metrics"><div><strong>{completedTasks}<small>/{totalTasks}</small></strong><span>今日任务</span></div><div><strong>{records.length}</strong><span>累计错题</span></div><div><strong>{pending}</strong><span>需要关注</span></div><div><strong>{mastered}</strong><span>已完成订正</span></div></div>
     <div className="parent-insight"><span>💡</span><div><strong>本周学习建议</strong><p>{pending > 0 ? `孩子目前有${pending}个知识点需要复习${focusSubject ? `，优先关注${focusSubject}` : ""}。系统已经放入复习花园，家长无需另外出题。` : "目前没有待订正题目，保持每天20～30分钟的轻量学习即可。"}</p></div></div>
     <section className="learning-report">
       <div className="section-heading compact"><div><span className="section-kicker">把错题翻译成家长能看懂的结论</span><h2>学习诊断</h2></div><span className="task-count">自动分析</span></div>
