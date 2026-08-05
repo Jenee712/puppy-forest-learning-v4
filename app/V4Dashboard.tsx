@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { getCourseQuestion, getDailyQuestion, type QuestionItem } from "../data/questionBank";
+import { getCourseQuestions, getDailyQuestion, type QuestionItem } from "../data/questionBank";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
@@ -81,8 +81,9 @@ export function V4Dashboard() {
     setAnswerState(null);
   };
 
-  const openCourse = (course: Course) => {
-    setActiveQuestion(getCourseQuestion(course.name, selectedGrade));
+  const openCourse = (course: Course, lessonIndex = 0) => {
+    const courseQuestions = getCourseQuestions(course.name, selectedGrade);
+    setActiveQuestion(courseQuestions[lessonIndex] ?? courseQuestions[0]);
     setActiveTaskIndex(null);
     setSelectedAnswer(null);
     setAnswerState(null);
@@ -160,7 +161,7 @@ export function V4Dashboard() {
           {activeNav === "课程中心" && (
             <section className="page-surface course-page">
               {selectedCourse ? (
-                <CourseDetail course={selectedCourse} grade={currentGrade} onBack={() => setSelectedCourse(null)} onStart={() => openCourse(selectedCourse)} />
+                <CourseDetail course={selectedCourse} grade={currentGrade} onBack={() => setSelectedCourse(null)} onStart={(lessonIndex) => openCourse(selectedCourse, lessonIndex)} />
               ) : (
                 <>
                   <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
@@ -190,7 +191,7 @@ function GradeRoute({ currentGrade, selectedGrade, onSelect }: { currentGrade: G
   return <section className="grade-section"><div className="section-heading"><div><span className="section-kicker">为孩子选择合适的起点</span><h2>八级成长路线</h2></div><div className="current-pill">当前：{currentGrade.icon} {currentGrade.id} · {currentGrade.school}</div></div><div className="grade-grid">{grades.map((grade) => <button className={`grade-card ${grade.color} ${selectedGrade === grade.id ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} type="button"><span className="grade-icon">{grade.icon}</span><strong>{grade.id}</strong><b>{grade.school}</b><small>{grade.age}</small><p>{grade.focus}</p>{selectedGrade === grade.id && <i>已选择</i>}</button>)}</div></section>;
 }
 
-function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grade: Grade; onBack: () => void; onStart: () => void }) {
+function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grade: Grade; onBack: () => void; onStart: (lessonIndex: number) => void }) {
   const lessonNames: Record<string, string[]> = {
     "语言表达": ["看图说一句完整的话", "按顺序讲清楚", "听故事回答问题", "介绍我喜欢的东西"],
     "数量与空间": ["点一点：5以内数量", "认识圆形和方形", "上下左右在哪里", "发现重复的规律"],
@@ -207,18 +208,23 @@ function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grad
     "综合素养": ["先倾听再表达", "安排我的学习时间", "生活中的分类", "合作解决一个问题"],
   };
   let lessons = lessonNames[course.name] ?? ["第一课：认识新知识", "第二课：动手练一练", "第三课：生活中找一找", "第四课：闯关复习"];
+  if (course.name === "英语兴趣" && grade.id === "G1") lessons = ["A a 和 apple", "B b 和 ball", "C c 和 cat", "D d 和 dog"];
+  if (course.name === "英语兴趣" && grade.id === "G2") lessons = ["A a 和 apple", "早上好 Good morning", "礼貌表达 Thank you", "介绍自己的名字"];
+  if (course.name === "英语兴趣" && grade.id === "G3") lessons = ["B b 和 ball", "生活中的颜色词", "物品在哪里", "数字和数量表达"];
+  if (course.name === "英语兴趣" && grade.id === "G4") lessons = ["B b 和 ball", "用 can 表达能力", "询问和回答喜好", "介绍我的家庭"];
   if (course.name === "英语" && grade.id === "G5") lessons = ["一般现在时与日常作息", "第三人称单数变化", "读懂校园活动对话", "写出我的一天"];
   if (course.name === "英语" && grade.id === "G6") lessons = ["现在正在发生什么", "一般现在时与现在进行时", "听懂方向和地点", "阅读一封简短邮件"];
   if (course.name === "英语" && grade.id === "G7") lessons = ["用过去时讲一次旅行", "规则与不规则动词", "比较人物和事物", "从短文中提取关键信息"];
   if (course.name === "英语" && grade.id === "G8") lessons = ["整合信息并作出推断", "计划、变化与原因", "在语境中判断时态", "阅读短文并概括主旨"];
   if (course.name === "数学" && grade.id === "G8") lessons = ["百分数与折扣综合应用", "比与比例解决问题", "圆的周长和面积", "用方程表示数量关系"];
   if (course.name === "语文" && grade.id === "G8") lessons = ["判断观点与支撑依据", "概括段落和文章主旨", "品味关键语句的表达效果", "根据材料表达完整观点"];
+  const availableLessons = course.name.includes("英语") ? Math.min(getCourseQuestions(course.name, grade.id).length, lessons.length) : 1;
 
   return <div className="course-detail">
     <button className="course-back" onClick={onBack} type="button">← 返回课程中心</button>
-    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 共{course.units}课</p></div><button onClick={onStart} type="button">开始第1课 →</button></header>
+    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 共{course.units}课</p></div><button onClick={() => onStart(0)} type="button">开始第1课 →</button></header>
     <div className="course-detail-summary"><div><strong>{course.progress}%</strong><span>当前进度</span></div><div><strong>约8分钟</strong><span>每课时长</span></div><div><strong>本地核心题库</strong><span>内容来源</span></div></div>
-    <section className="unit-panel"><div className="section-heading compact"><div><span className="section-kicker">循序渐进，不用一次学完</span><h2>第一单元</h2></div><span className="task-count">1 / {lessons.length} 开放</span></div><div className="unit-list">{lessons.map((lesson, index) => <article className={index === 0 ? "unit-row current" : "unit-row locked"} key={lesson}><span>{index === 0 ? "🌟" : "🌱"}</span><div><small>第 {index + 1} 课</small><strong>{lesson}</strong><p>{index === 0 ? "讲解 + 互动练习 + 即时解析" : "完成上一课后按顺序开放"}</p></div>{index === 0 ? <button onClick={onStart} type="button">开始学习</button> : <em>即将开放</em>}</article>)}</div></section>
+    <section className="unit-panel"><div className="section-heading compact"><div><span className="section-kicker">循序渐进，不用一次学完</span><h2>第一单元</h2></div><span className="task-count">{availableLessons} / {lessons.length} 开放</span></div><div className="unit-list">{lessons.map((lesson, index) => { const available = index < availableLessons; return <article className={available ? "unit-row current" : "unit-row locked"} key={lesson}><span>{available ? "🌟" : "🌱"}</span><div><small>第 {index + 1} 课</small><strong>{lesson}</strong><p>{available ? "互动练习 + AI小词典 + 句型解析" : "完成本单元题库后按顺序开放"}</p></div>{available ? <button onClick={() => onStart(index)} type="button">进入第{index + 1}课</button> : <em>即将开放</em>}</article>; })}</div></section>
     <aside className="bank-note"><span>🧠</span><div><strong>这节课已经使用统一题库格式</strong><p>题目包含等级、学科、知识点、难度、答案和解析，以后可以直接接入智能出题与错题复习。</p></div></aside>
   </div>;
 }

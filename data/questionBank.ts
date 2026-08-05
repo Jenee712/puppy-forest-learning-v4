@@ -90,6 +90,41 @@ const gradeSpecificQuestions: Record<string, Omit<QuestionItem, "id" | "grade" |
   "G8:阅读与表达": { subject: "阅读与表达", knowledgePoint: "信息整合与推断", type: "single_choice", difficulty: 3, source: "local_core", title: "整合多条信息", prompt: "通知写道：“周五的义卖改到室内体育馆，时间不变；易碎物品请加固包装。”小航准备周五下午带玻璃手工作品参加。他最需要做什么？", visual: "地点改变，时间不变，还要注意物品特点。", options: ["改到周六再去", "按原时间去体育馆并加固包装", "仍去操场且不用包装"], answer: "按原时间去体育馆并加固包装", explanation: "需要同时利用“地点改变”“时间不变”和“易碎物品加固”三条信息。" },
 };
 
+const englishExtensions: Record<string, Array<Omit<QuestionItem, "id" | "grade" | "eyebrow">>> = {
+  G1: [
+    { subject: "英语兴趣", knowledgePoint: "字母B与单词", type: "single_choice", difficulty: 1, source: "local_core", title: "B is for ball", prompt: "哪个单词以字母 B 开头？", visual: "B b · ⚽", options: ["ball", "cat", "dog"], answer: "ball", explanation: "ball 的第一个字母是 b。", vocabulary: [{ term: "ball", phonetic: "/bɔːl/", tag: "名词", meaning: "球", expansion: "basketball 和 football 中都有 ball。", example: "This is a ball.", exampleMeaning: "这是一个球。" }] },
+    { subject: "英语兴趣", knowledgePoint: "字母C与单词", type: "single_choice", difficulty: 1, source: "local_core", title: "C is for cat", prompt: "哪一组是大写 C、小写 c 和对应单词？", visual: "🐱", options: ["C c · cat", "D d · dog", "A a · apple"], answer: "C c · cat", explanation: "C 和 c 是一对，cat 以 c 开头。", vocabulary: [{ term: "cat", phonetic: "/kæt/", tag: "名词", meaning: "猫", expansion: "a cat 表示一只猫，two cats 表示两只猫。", example: "The cat is cute.", exampleMeaning: "这只猫很可爱。" }] },
+  ],
+  G2: [
+    { subject: "英语兴趣", knowledgePoint: "日常问候", type: "single_choice", difficulty: 1, source: "local_core", title: "Hello, my friend", prompt: "早上见到老师，可以怎么说？", visual: "🌞 👩‍🏫", options: ["Good morning!", "Good night!", "Goodbye!"], answer: "Good morning!", explanation: "早上问候使用 Good morning。", vocabulary: [{ term: "Good morning", phonetic: "/ɡʊd ˈmɔːnɪŋ/", tag: "问候语", meaning: "早上好", expansion: "morning 指从早晨到中午前。", example: "Good morning, Ms Li!", exampleMeaning: "李老师，早上好！" }] },
+    { subject: "英语兴趣", knowledgePoint: "表达感谢", type: "single_choice", difficulty: 1, source: "local_core", title: "Thank you", prompt: "朋友把彩笔借给你，你应该说什么？", visual: "🖍️ 🤝", options: ["Thank you.", "Sit down.", "I'm five."], answer: "Thank you.", explanation: "接受别人帮助后，可以用 Thank you 表达感谢。", vocabulary: [{ term: "Thank you", phonetic: "/ˈθæŋk juː/", tag: "礼貌用语", meaning: "谢谢你", expansion: "回答感谢时可以说 You're welcome。", example: "Thank you for your help.", exampleMeaning: "谢谢你的帮助。" }] },
+  ],
+  G3: [
+    { subject: "英语兴趣", knowledgePoint: "颜色词", type: "single_choice", difficulty: 1, source: "local_core", title: "Colours around us", prompt: "The sky is usually ____ on a sunny day.", visual: "☀️ ☁️", options: ["blue", "green", "black"], answer: "blue", explanation: "晴朗的天空通常是蓝色的。", vocabulary: [{ term: "blue", phonetic: "/bluː/", tag: "颜色词", meaning: "蓝色；蓝色的", expansion: "颜色词可以放在名词前，如 a blue bag。", example: "I have a blue kite.", exampleMeaning: "我有一只蓝色的风筝。" }] },
+    { subject: "英语兴趣", knowledgePoint: "物品位置", type: "single_choice", difficulty: 1, source: "local_core", title: "Where is the book?", prompt: "The book is ____ the desk.", visual: "📖 ⬆️ 🪵", options: ["on", "under", "in"], answer: "on", explanation: "图书在桌面上，所以使用 on。", vocabulary: [{ term: "on the desk", phonetic: "/ɒn ðə desk/", tag: "位置词组", meaning: "在书桌上", expansion: "on 表示物体与表面接触。", example: "My pencil is on the desk.", exampleMeaning: "我的铅笔在书桌上。" }], grammarTip: { title: "表达位置", pattern: "物品 + is + 位置词组", explanation: "用 on、in、under 等介词说明物品在哪里。" } },
+  ],
+  G4: [
+    { subject: "英语兴趣", knowledgePoint: "能力表达", type: "single_choice", difficulty: 1, source: "local_core", title: "I can do it", prompt: "小鸟会飞，可以怎么说？", visual: "🐦 ✈️", options: ["The bird can fly.", "The bird can swim.", "The bird is a fish."], answer: "The bird can fly.", explanation: "can 后面接动词原形 fly，表示“会飞”。", vocabulary: [{ term: "can fly", phonetic: "/kæn flaɪ/", tag: "动词词组", meaning: "会飞", expansion: "can 表示能力，后面接动词原形。", example: "A butterfly can fly.", exampleMeaning: "蝴蝶会飞。" }], grammarTip: { title: "表达能力", pattern: "主语 + can + 动词原形", explanation: "can 后面的动词不加-s，也不加-ing。" } },
+    { subject: "英语兴趣", knowledgePoint: "一般疑问句", type: "single_choice", difficulty: 1, source: "local_core", title: "Do you like apples?", prompt: "— Do you like apples? — ____", visual: "🍎 🙂", options: ["Yes, I do.", "Yes, I am.", "I am ten."], answer: "Yes, I do.", explanation: "Do you...? 的肯定回答使用 Yes, I do。", vocabulary: [{ term: "Do you like...?", phonetic: "/duː juː laɪk/", tag: "问句", meaning: "你喜欢……吗？", expansion: "可以替换最后的事物询问不同喜好。", example: "Do you like music?", exampleMeaning: "你喜欢音乐吗？" }], grammarTip: { title: "一般疑问句回答", pattern: "Do you...? — Yes, I do. / No, I don't.", explanation: "问句由 do 开头，简短回答也要使用 do。" } },
+  ],
+  G5: [
+    { subject: "英语", knowledgePoint: "there be句型", type: "single_choice", difficulty: 2, source: "local_core", title: "In our classroom", prompt: "There ____ two maps on the wall.", visual: "🗺️ 🗺️  on the wall", options: ["is", "are", "be"], answer: "are", explanation: "two maps 是复数，所以使用 There are。", vocabulary: [{ term: "on the wall", phonetic: "/ɒn ðə wɔːl/", tag: "位置词组", meaning: "在墙上", expansion: "on 强调物体附着在表面。", example: "There is a clock on the wall.", exampleMeaning: "墙上有一个钟。" }], grammarTip: { title: "There be句型", pattern: "There is + 单数 / There are + 复数", explanation: "be动词要和后面紧接的名词保持单复数一致。" } },
+    { subject: "英语", knowledgePoint: "特殊疑问句", type: "single_choice", difficulty: 2, source: "local_core", title: "Ask about time", prompt: "— ____ do you get up? — At seven o'clock.", visual: "⏰ 7:00", options: ["What time", "How many", "Where"], answer: "What time", explanation: "回答是具体时间，因此使用 What time 提问。", vocabulary: [{ term: "get up", phonetic: "/ɡet ʌp/", tag: "动词词组", meaning: "起床", expansion: "get up 指从床上起来，wake up 指醒来。", example: "I get up at seven.", exampleMeaning: "我七点起床。" }], grammarTip: { title: "询问时间", pattern: "What time do you + 动词原形?", explanation: "询问某个日常活动的时间，用 What time 开头。" } },
+  ],
+  G6: [
+    { subject: "英语", knowledgePoint: "路线指引", type: "single_choice", difficulty: 2, source: "local_core", title: "Find the library", prompt: "Go straight and turn left ____ the second crossing.", visual: "⬆️ then ⬅️ at 2️⃣", options: ["at", "on", "from"], answer: "at", explanation: "在路口这一位置使用介词 at。", vocabulary: [{ term: "turn left", phonetic: "/tɜːn left/", tag: "动词词组", meaning: "向左转", expansion: "相反方向是 turn right。", example: "Turn left at the school gate.", exampleMeaning: "在校门口向左转。" }, { term: "crossing", phonetic: "/ˈkrɒsɪŋ/", tag: "名词", meaning: "十字路口；交叉口", expansion: "the second crossing 表示第二个路口。", example: "The bank is near the crossing.", exampleMeaning: "银行在十字路口附近。" }] },
+    { subject: "英语", knowledgePoint: "一般将来时", type: "single_choice", difficulty: 2, source: "local_core", title: "Weekend plans", prompt: "We are going to ____ trees this Sunday.", visual: "📅 Sunday 🌳", options: ["plant", "planted", "planting"], answer: "plant", explanation: "be going to 后面接动词原形。", vocabulary: [{ term: "plant trees", phonetic: "/plɑːnt triːz/", tag: "动词词组", meaning: "植树", expansion: "plant 既可以作动词“种植”，也可以作名词“植物”。", example: "They plant trees every spring.", exampleMeaning: "他们每年春天植树。" }], grammarTip: { title: "表达计划", pattern: "be going to + 动词原形", explanation: "表示已经打算或计划要做的事情。" } },
+  ],
+  G7: [
+    { subject: "英语", knowledgePoint: "比较级", type: "single_choice", difficulty: 2, source: "local_core", title: "Compare the animals", prompt: "An elephant is ____ than a panda.", visual: "🐘 ↔️ 🐼", options: ["heavy", "heavier", "heaviest"], answer: "heavier", explanation: "句中有 than，需要使用比较级 heavier。", vocabulary: [{ term: "heavier than", phonetic: "/ˈhevɪə ðæn/", tag: "比较结构", meaning: "比……更重", expansion: "heavy 变比较级时，y变i再加-er。", example: "This box is heavier than that one.", exampleMeaning: "这个箱子比那个更重。" }], grammarTip: { title: "形容词比较级", pattern: "A + be + 比较级 + than + B", explanation: "比较两个人或事物时使用比较级和 than。" } },
+    { subject: "英语", knowledgePoint: "建议表达", type: "single_choice", difficulty: 2, source: "local_core", title: "Give good advice", prompt: "Your friend has a cold. What should you say?", visual: "🤧 🛌 💧", options: ["You should rest and drink water.", "You should run in the rain.", "You should eat more ice cream."], answer: "You should rest and drink water.", explanation: "感冒时休息并补充水分是合理建议。", vocabulary: [{ term: "have a cold", phonetic: "/hæv ə kəʊld/", tag: "固定词组", meaning: "感冒", expansion: "这里的 cold 是名词，不是“寒冷的”。", example: "I have a cold today.", exampleMeaning: "我今天感冒了。" }, { term: "should", phonetic: "/ʃʊd/", tag: "情态动词", meaning: "应该", expansion: "should 后面接动词原形，用来提出建议。", example: "You should go to bed early.", exampleMeaning: "你应该早点睡觉。" }], grammarTip: { title: "提出建议", pattern: "You should + 动词原形", explanation: "should 表示“应该”，语气比命令更温和。" } },
+  ],
+  G8: [
+    { subject: "英语", knowledgePoint: "短文主旨", type: "single_choice", difficulty: 3, source: "local_core", title: "Find the main idea", prompt: "Mia started carrying a reusable bottle, refused plastic straws and asked her family to sort rubbish. Soon, her brother joined her. What is the passage mainly about?", visual: "♻️ Small actions can influence others.", options: ["Mia's green habits influenced her family.", "Mia wanted to buy a new bottle.", "Mia's brother disliked sorting rubbish."], answer: "Mia's green habits influenced her family.", explanation: "三个行为都围绕环保习惯，最后弟弟也加入，主旨是个人行动影响家人。", vocabulary: [{ term: "reusable", phonetic: "/ˌriːˈjuːzəbəl/", tag: "形容词", meaning: "可重复使用的", expansion: "re-表示“再次”，usable表示“可使用的”。", example: "A reusable bag can reduce waste.", exampleMeaning: "可重复使用的袋子能减少垃圾。" }, { term: "sort rubbish", phonetic: "/sɔːt ˈrʌbɪʃ/", tag: "动词词组", meaning: "垃圾分类", expansion: "sort 表示按照类别整理。", example: "We sort rubbish at home.", exampleMeaning: "我们在家进行垃圾分类。" }], grammarTip: { title: "概括文章主旨", pattern: "重复主题 + 结果变化 → 中心意思", explanation: "不要选择只覆盖一个细节的答案，要找能概括全文行为和结果的选项。" } },
+    { subject: "英语", knowledgePoint: "条件句语境", type: "single_choice", difficulty: 3, source: "local_core", title: "Weather and plans", prompt: "If it ____ tomorrow, the football match will be held in the school gym.", visual: "🌧️ → ⚽ indoors", options: ["rains", "will rain", "rained"], answer: "rains", explanation: "真实条件句中，if从句用一般现在时，主句使用will。", vocabulary: [{ term: "be held", phonetic: "/bi held/", tag: "被动词组", meaning: "被举行；举办", expansion: "活动作主语时常使用 be held。", example: "The show will be held on Friday.", exampleMeaning: "演出将在星期五举行。" }, { term: "school gym", phonetic: "/skuːl dʒɪm/", tag: "名词词组", meaning: "学校体育馆", expansion: "gym 是 gymnasium 的常用缩写。", example: "We play basketball in the school gym.", exampleMeaning: "我们在学校体育馆打篮球。" }], grammarTip: { title: "真实条件句", pattern: "If + 一般现在时, 主语 + will + 动词原形", explanation: "谈论未来可能发生的条件时，if从句通常不用will。" } },
+  ],
+};
+
 export function getDailyQuestion(index: number) {
   return dailyQuestions[index] ?? dailyQuestions[0];
 }
@@ -99,4 +134,23 @@ export function getCourseQuestion(courseName: string, grade: string): QuestionIt
   const fallback = preschoolQuestions["英语兴趣"];
   const question = source ?? fallback;
   return { ...question, id: `${grade.toLowerCase()}-${courseName}`, grade, eyebrow: `${grade} · ${courseName}` };
+}
+
+export function getCourseQuestions(courseName: string, grade: string): QuestionItem[] {
+  const first = getCourseQuestion(courseName, grade);
+  if (!courseName.includes("英语")) return [first];
+  const extensions = englishExtensions[grade] ?? [];
+  return [first, ...extensions.map((question, index) => ({ ...question, id: `${grade.toLowerCase()}-english-${index + 2}`, grade, eyebrow: `${grade} · ${courseName}` }))];
+}
+
+export function validateEnglishDictionaryCoverage() {
+  return ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"].flatMap((grade) => {
+    const courseName = ["G1", "G2", "G3", "G4"].includes(grade) ? "英语兴趣" : "英语";
+    return getCourseQuestions(courseName, grade).filter((question) => !question.vocabulary?.length).map((question) => `${grade}:${question.title}`);
+  });
+}
+
+const missingEnglishDictionaries = validateEnglishDictionaryCoverage();
+if (missingEnglishDictionaries.length > 0) {
+  throw new Error(`英语题缺少AI词典解析：${missingEnglishDictionaries.join(", ")}`);
 }
