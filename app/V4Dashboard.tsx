@@ -335,8 +335,10 @@ function PlanModal({ onClose }: { onClose: () => void }) {
 
 function LessonModal({ question, notice, selectedAnswer, answerState, aiLoading, onSelect, onCheck, onSmartNext, onFinish, onClose }: { question: QuestionItem; notice: string | null; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; aiLoading: boolean; onSelect: (answer: string) => void; onCheck: () => void; onSmartNext: () => void; onFinish: () => void; onClose: () => void }) {
   const isEarlyLearner = /^(G1|G2|G3)(?:$|-)/.test(question.grade);
+  const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
+  const promptLanguage = getTtsLanguage(question.prompt);
   const previewVocabulary = question.subject.includes("英语") ? question.vocabulary?.slice(0, 3) ?? [] : [];
-  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={getTtsLanguage(question.prompt)} segment="sentence" label="听题目" autoPlay={isEarlyLearner} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} segment="word" label={`听 ${item.term}`} />)}</div>}<QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}<FeedbackAudio state={answerState} /></div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">提交答案</button>}</section></div>;
+  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={promptLanguage} playbackRate={promptLanguage === "en" ? englishPlaybackRate : 1} segment="sentence" label="听题目" autoPlay={isEarlyLearner} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} playbackRate={englishPlaybackRate} segment="word" label={`听 ${item.term}`} />)}</div>}<QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}<FeedbackAudio state={answerState} /></div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">提交答案</button>}</section></div>;
 }
 
 function MathModel({ question }: { question: QuestionItem }) {
@@ -363,13 +365,15 @@ function QuestionAnswer({ question, selectedAnswer, answerState, onSelect }: { q
   }
   const answerClass = question.type === "true_false" ? "answer-grid true-false" : "answer-grid";
   const isEarlyLearner = /^(G1|G2|G3)(?:$|-)/.test(question.grade);
+  const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
   const canReadOptions = question.type !== "true_false" && (question.subject.includes("英语") || isEarlyLearner);
   const optionLabels = ["A", "B", "C", "D"];
   return <div className={`${answerClass} ${canReadOptions ? "with-audio" : ""}`}>{question.options.map((option, index) => {
     const speechText = cleanEnglishSpeech(option);
     const answerButton = <button className={`answer-choice ${selectedAnswer === option ? "selected" : ""} ${answerState && option === question.answer ? "correct" : ""} ${answerState === "wrong" && selectedAnswer === option ? "wrong" : ""}`} onClick={() => onSelect(option)} disabled={answerState !== null} type="button">{question.type === "true_false" && <span>{option === "正确" ? "✓" : "×"}</span>}{option}</button>;
     if (!canReadOptions || !/[A-Za-z\u3400-\u9FFF]/.test(speechText)) return <div className="answer-option" key={option}>{answerButton}</div>;
-    return <div className="answer-option" key={option}>{answerButton}<TtsButton text={speechText} language={getTtsLanguage(speechText)} segment={speechText.includes(" ") ? "sentence" : "word"} label={`听选项${optionLabels[index] ?? index + 1}`} /></div>;
+    const optionLanguage = getTtsLanguage(speechText);
+    return <div className="answer-option" key={option}>{answerButton}<TtsButton text={speechText} language={optionLanguage} playbackRate={optionLanguage === "en" ? englishPlaybackRate : 1} segment={speechText.includes(" ") ? "sentence" : "word"} label={`听选项${optionLabels[index] ?? index + 1}`} /></div>;
   })}</div>;
 }
 
@@ -381,11 +385,20 @@ function getTtsLanguage(text: string): "en" | "zh" {
   return /[\u3400-\u9FFF]/.test(text) ? "zh" : "en";
 }
 
-function DictionaryExpansion({ question }: { question: QuestionItem }) {
-  return <section className="dictionary-panel"><header><span>📖</span><div><small>本题词汇扩展</small><strong>AI 小词典</strong></div><em>{question.vocabulary?.length ?? 0} 个重点</em></header><div className="dictionary-grid">{question.vocabulary?.map((item) => <article className="dictionary-card" key={item.term}><div className="dictionary-term"><div><strong>{item.term}</strong>{item.phonetic && <span>{item.phonetic}</span>}</div><em>{item.tag}</em></div><p className="dictionary-meaning">{item.meaning}</p><div className="dictionary-audio-actions"><TtsButton text={item.term.replaceAll("...", "")} segment="word" label="听单词" /><TtsButton text={item.example} segment="sentence" label="听例句" /></div><p className="dictionary-expansion">💡 {item.expansion}</p><div className="dictionary-example"><strong>{item.example}</strong><span>{item.exampleMeaning}</span></div></article>)}</div>{question.grammarTip && <aside className="grammar-tip"><span>🧩</span><div><small>{question.grammarTip.title}</small><strong>{question.grammarTip.pattern}</strong><p>{question.grammarTip.explanation}</p></div></aside>}</section>;
+function getEnglishPlaybackRate(grade: string) {
+  const gradeNumber = Number(grade.match(/G([1-8])/)?.[1] ?? 3);
+  if (gradeNumber <= 2) return .75;
+  if (gradeNumber <= 4) return .85;
+  if (gradeNumber <= 6) return .9;
+  return .95;
 }
 
-function TtsButton({ text, segment, label, language = "en", autoPlay = false }: { text: string; segment: "word" | "sentence"; label: string; language?: "en" | "zh"; autoPlay?: boolean }) {
+function DictionaryExpansion({ question }: { question: QuestionItem }) {
+  const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
+  return <section className="dictionary-panel"><header><span>📖</span><div><small>本题词汇扩展</small><strong>AI 小词典</strong></div><em>{question.vocabulary?.length ?? 0} 个重点</em></header><div className="dictionary-grid">{question.vocabulary?.map((item) => <article className="dictionary-card" key={item.term}><div className="dictionary-term"><div><strong>{item.term}</strong>{item.phonetic && <span>{item.phonetic}</span>}</div><em>{item.tag}</em></div><p className="dictionary-meaning">{item.meaning}</p><div className="dictionary-audio-actions"><TtsButton text={item.term.replaceAll("...", "")} playbackRate={englishPlaybackRate} segment="word" label="听单词" /><TtsButton text={item.example} playbackRate={englishPlaybackRate} segment="sentence" label="听例句" /></div><p className="dictionary-expansion">💡 {item.expansion}</p><div className="dictionary-example"><strong>{item.example}</strong><span>{item.exampleMeaning}</span></div></article>)}</div>{question.grammarTip && <aside className="grammar-tip"><span>🧩</span><div><small>{question.grammarTip.title}</small><strong>{question.grammarTip.pattern}</strong><p>{question.grammarTip.explanation}</p></div></aside>}</section>;
+}
+
+function TtsButton({ text, segment, label, language = "en", playbackRate = 1, autoPlay = false }: { text: string; segment: "word" | "sentence"; label: string; language?: "en" | "zh"; playbackRate?: number; autoPlay?: boolean }) {
   const [status, setStatus] = useState<"idle" | "loading" | "playing" | "error">("idle");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
@@ -412,6 +425,9 @@ function TtsButton({ text, segment, label, language = "en", autoPlay = false }: 
       if (!response.ok) throw new Error("tts_failed");
       const url = URL.createObjectURL(await response.blob());
       const audio = new Audio(url);
+      audio.playbackRate = playbackRate;
+      audio.defaultPlaybackRate = playbackRate;
+      audio.preservesPitch = true;
       audioRef.current = audio;
       urlRef.current = url;
       audio.onended = stop;
@@ -434,7 +450,8 @@ function TtsButton({ text, segment, label, language = "en", autoPlay = false }: 
   }, [autoPlay]);
 
   const textLabel = status === "loading" ? "生成中" : status === "playing" ? "停止" : status === "error" ? "稍后再试" : label;
-  return <button className={`tts-button ${status}`} onClick={() => void play(false)} disabled={status === "loading"} aria-label={`${label}：${text}`} type="button"><span aria-hidden="true">{status === "playing" ? "■" : "🔊"}</span>{textLabel}</button>;
+  const rateLabel = language === "en" && playbackRate < 1 ? `${playbackRate.toFixed(2)}×` : null;
+  return <button className={`tts-button ${status}`} onClick={() => void play(false)} disabled={status === "loading"} aria-label={`${label}：${text}${rateLabel ? `，${rateLabel}慢速` : ""}`} type="button"><span aria-hidden="true">{status === "playing" ? "■" : "🔊"}</span>{textLabel}{rateLabel && <em className="tts-rate">{rateLabel}</em>}</button>;
 }
 
 function FeedbackAudio({ state }: { state: "correct" | "wrong" }) {
