@@ -21,7 +21,7 @@ const grades: Grade[] = [
 
 const navGroups = [
   { label: "学习列车", items: [["🏡", "首页"], ["☀️", "今日学习"], ["🧩", "课程中心"], ["📖", "绘本馆"], ["🗺️", "学习计划"]] },
-  { label: "森林乐园", items: [["🌷", "复习花园"], ["🎒", "错题本"], ["✨", "贴纸册"], ["🛡️", "家长中心"]] },
+  { label: "森林乐园", items: [["🌷", "复习花园"], ["✨", "贴纸册"], ["🛡️", "家长中心"]] },
 ];
 
 const tasks = [
@@ -159,7 +159,7 @@ export function V4Dashboard() {
               <p>{group.label}</p>
               {group.items.map(([icon, label]) => (
                 <button className={activeNav === label ? "nav-item active" : "nav-item"} key={label} onClick={() => goTo(label)} type="button">
-                  <span aria-hidden="true">{icon}</span>{label}{label === "错题本" && pendingWrongCount > 0 && <em>{pendingWrongCount}</em>}
+                  <span aria-hidden="true">{icon}</span>{label}{label === "复习花园" && pendingWrongCount > 0 && <em>{pendingWrongCount}</em>}
                 </button>
               ))}
             </div>
@@ -214,10 +214,10 @@ export function V4Dashboard() {
             </section>
           )}
 
-          {activeNav === "错题本" && <WrongBook records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} onGarden={() => goTo("复习花园")} />}
           {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} />}
+          {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} onGarden={() => goTo("复习花园")} />}
 
-          {!["首页", "今日学习", "课程中心", "错题本", "复习花园"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
+          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
           {activeQuestion && <LessonModal question={activeQuestion} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); }} />}
@@ -225,7 +225,7 @@ export function V4Dashboard() {
       </main>
 
       <nav className="mobile-nav" aria-label="手机导航">
-        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🎒", pendingWrongCount > 0 ? `错题${pendingWrongCount}` : "错题", "错题本"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
+        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
       </nav>
     </div>
   );
@@ -293,11 +293,10 @@ function DictionaryExpansion({ question }: { question: QuestionItem }) {
   return <section className="dictionary-panel"><header><span>📖</span><div><small>本题词汇扩展</small><strong>AI 小词典</strong></div><em>{question.vocabulary?.length ?? 0} 个重点</em></header><div className="dictionary-grid">{question.vocabulary?.map((item) => <article className="dictionary-card" key={item.term}><div className="dictionary-term"><div><strong>{item.term}</strong>{item.phonetic && <span>{item.phonetic}</span>}</div><em>{item.tag}</em></div><p className="dictionary-meaning">{item.meaning}</p><p className="dictionary-expansion">💡 {item.expansion}</p><div className="dictionary-example"><strong>{item.example}</strong><span>{item.exampleMeaning}</span></div></article>)}</div>{question.grammarTip && <aside className="grammar-tip"><span>🧩</span><div><small>{question.grammarTip.title}</small><strong>{question.grammarTip.pattern}</strong><p>{question.grammarTip.explanation}</p></div></aside>}</section>;
 }
 
-function WrongBook({ records, onRetry, onCourse, onGarden }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void; onGarden: () => void }) {
-  const pending = records.filter((record) => !record.mastered);
-  const mastered = records.filter((record) => record.mastered);
-  return <section className="page-surface wrong-book-page"><PageTitle eyebrow="答错不是失败，而是找到要复习的地方" title="智能错题本" subtitle="自动记录错误选项，并按知识点安排再次练习" icon="🎒" /><div className="wrong-summary"><div><strong>{pending.length}</strong><span>待复习</span></div><div><strong>{mastered.length}</strong><span>已掌握</span></div><div><strong>{records.reduce((total, record) => total + record.attempts, 0)}</strong><span>累计发现错误</span></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌱</span><h2>错题本还是空的</h2><p>做题时如果答错，系统会自动把题目和知识点放到这里，不需要家长手动整理。</p><button onClick={onCourse} type="button">去课程中心练习</button></div> : <><div className="review-plan"><span>🌷</span><div><strong>森林复习节奏</strong><p>首次答错后当天重做；订正后安排1天、3天和7天巩固。</p></div><button onClick={onGarden} type="button">查看复习花园 →</button></div><div className="wrong-list">{records.map((record) => <article className={record.mastered ? "wrong-card mastered" : "wrong-card"} key={record.question.id}><div className="wrong-card-top"><span>{record.mastered ? "✅" : "📝"}</span><div><small>{record.question.grade} · {record.question.subject} · {record.question.knowledgePoint}</small><strong>{record.question.title}</strong></div><em>{record.mastered ? "已订正" : `错${record.attempts}次`}</em></div><p className="wrong-prompt">{record.question.prompt}</p><div className="wrong-answer"><span>上次选择：<b>{record.selectedAnswer}</b></span><span>正确答案：<b>{record.question.answer}</b></span></div><footer><small>{record.mastered ? "已经进入间隔复习计划" : record.attempts > 1 ? "建议：今天再练，明天继续复习" : "建议：今天完成第一次订正"}</small><button onClick={() => onRetry(record)} type="button">{record.mastered ? "再次巩固" : "马上订正"} →</button></footer></article>)}</div><p className="device-note">🔒 当前试用版记录保存在这台设备；正式账号版将同步到家长中心。</p></>}
-  </section>;
+function ParentCenter({ records, grade, completedTasks, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; onGarden: () => void }) {
+  const pending = records.filter((record) => !record.mastered).length;
+  const mastered = records.filter((record) => record.mastered).length;
+  return <section className="page-surface parent-center-page"><PageTitle eyebrow="家长只看结果，不需要手动整理题目" title="家长中心" subtitle={`${grade.id} · ${grade.school} · 小鹿 Leo 的学习概览`} icon="🛡️" /><div className="parent-hero"><div><span>🦌</span><div><small>孩子档案</small><strong>小鹿 Leo</strong><p>{grade.age} · 当前学习等级 {grade.id}</p></div></div><button onClick={onGarden} type="button">查看孩子今天的复习 →</button></div><div className="parent-metrics"><div><strong>{completedTasks}<small>/3</small></strong><span>今日任务</span></div><div><strong>{records.length}</strong><span>累计错题</span></div><div><strong>{pending}</strong><span>需要关注</span></div><div><strong>{mastered}</strong><span>已完成订正</span></div></div><div className="parent-insight"><span>💡</span><div><strong>本周学习建议</strong><p>{pending > 0 ? `孩子目前有${pending}个知识点需要复习，系统已经放入复习花园。家长无需另外出题。` : "目前没有待订正题目，保持每天20～30分钟的轻量学习即可。"}</p></div></div><section className="archive-panel"><div className="section-heading compact"><div><span className="section-kicker">仅供家长查看，不在这里做题</span><h2>错题档案</h2></div><span className="task-count">{records.length} 条记录</span></div>{records.length === 0 ? <p className="archive-empty">孩子答错后，题目、错误答案、知识点和订正状态会自动归档到这里。</p> : <div className="archive-list">{records.map((record) => <article className="archive-card" key={record.question.id}><div><span>{record.mastered ? "✅" : "⚠️"}</span><div><small>{record.question.grade} · {record.question.subject}</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div></div><dl><div><dt>错误答案</dt><dd>{record.selectedAnswer}</dd></div><div><dt>正确答案</dt><dd>{record.question.answer}</dd></div><div><dt>错误次数</dt><dd>{record.attempts}次</dd></div><div><dt>当前状态</dt><dd>{record.mastered ? "已订正，等待巩固" : "待复习"}</dd></div></dl></article>)}</div>}<p className="device-note">🔒 试用版档案保存在当前设备；正式账号版将支持家庭多设备同步。</p></section></section>;
 }
 
 function ReviewGarden({ records, onRetry, onCourse }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void }) {
