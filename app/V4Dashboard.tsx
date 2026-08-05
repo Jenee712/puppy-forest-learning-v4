@@ -6,7 +6,7 @@ import { getCourseQuestions, getDailyQuestion, type QuestionItem } from "../data
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
-type WrongRecord = { question: QuestionItem; selectedAnswer: string; attempts: number; mastered: boolean; lastWrongAt: string };
+type WrongRecord = { question: QuestionItem; selectedAnswer: string; attempts: number; mastered: boolean; lastWrongAt: string; reviewStage?: number; nextReviewAt?: string | null };
 
 const grades: Grade[] = [
   { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯" },
@@ -29,6 +29,8 @@ const tasks = [
   { icon: "🧮", title: "数学小站", detail: "图形规律 · 接着排", minutes: "8分钟", color: "blue" },
   { icon: "📚", title: "故事树屋", detail: "《会飞的小种子》", minutes: "7分钟", color: "pink" },
 ];
+
+const SESSION_NOW = Date.now();
 
 
 const products = [
@@ -115,9 +117,14 @@ export function V4Dashboard() {
     setAnswerState(correct ? "correct" : "wrong");
     setWrongRecords((records) => {
       const existing = records.find((record) => record.question.id === activeQuestion.id);
-      if (correct) return existing ? records.map((record) => record.question.id === activeQuestion.id ? { ...record, mastered: true } : record) : records;
-      if (existing) return records.map((record) => record.question.id === activeQuestion.id ? { ...record, selectedAnswer, attempts: record.attempts + 1, mastered: false, lastWrongAt: new Date().toISOString() } : record);
-      return [{ question: activeQuestion, selectedAnswer, attempts: 1, mastered: false, lastWrongAt: new Date().toISOString() }, ...records];
+      if (correct) return existing ? records.map((record) => {
+        if (record.question.id !== activeQuestion.id) return record;
+        const reviewStage = Math.min((record.reviewStage ?? 0) + 1, 3);
+        const delayDays = reviewStage === 1 ? 1 : reviewStage === 2 ? 3 : 7;
+        return { ...record, mastered: true, reviewStage, nextReviewAt: reviewStage >= 3 ? null : new Date(Date.now() + delayDays * 86400000).toISOString() };
+      }) : records;
+      if (existing) return records.map((record) => record.question.id === activeQuestion.id ? { ...record, selectedAnswer, attempts: record.attempts + 1, mastered: false, reviewStage: 0, nextReviewAt: new Date().toISOString(), lastWrongAt: new Date().toISOString() } : record);
+      return [{ question: activeQuestion, selectedAnswer, attempts: 1, mastered: false, reviewStage: 0, nextReviewAt: new Date().toISOString(), lastWrongAt: new Date().toISOString() }, ...records];
     });
   };
 
@@ -207,9 +214,10 @@ export function V4Dashboard() {
             </section>
           )}
 
-          {activeNav === "错题本" && <WrongBook records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} />}
+          {activeNav === "错题本" && <WrongBook records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} onGarden={() => goTo("复习花园")} />}
+          {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} />}
 
-          {!["首页", "今日学习", "课程中心", "错题本"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
+          {!["首页", "今日学习", "课程中心", "错题本", "复习花园"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
           {activeQuestion && <LessonModal question={activeQuestion} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); }} />}
@@ -285,10 +293,24 @@ function DictionaryExpansion({ question }: { question: QuestionItem }) {
   return <section className="dictionary-panel"><header><span>📖</span><div><small>本题词汇扩展</small><strong>AI 小词典</strong></div><em>{question.vocabulary?.length ?? 0} 个重点</em></header><div className="dictionary-grid">{question.vocabulary?.map((item) => <article className="dictionary-card" key={item.term}><div className="dictionary-term"><div><strong>{item.term}</strong>{item.phonetic && <span>{item.phonetic}</span>}</div><em>{item.tag}</em></div><p className="dictionary-meaning">{item.meaning}</p><p className="dictionary-expansion">💡 {item.expansion}</p><div className="dictionary-example"><strong>{item.example}</strong><span>{item.exampleMeaning}</span></div></article>)}</div>{question.grammarTip && <aside className="grammar-tip"><span>🧩</span><div><small>{question.grammarTip.title}</small><strong>{question.grammarTip.pattern}</strong><p>{question.grammarTip.explanation}</p></div></aside>}</section>;
 }
 
-function WrongBook({ records, onRetry, onCourse }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void }) {
+function WrongBook({ records, onRetry, onCourse, onGarden }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void; onGarden: () => void }) {
   const pending = records.filter((record) => !record.mastered);
   const mastered = records.filter((record) => record.mastered);
-  return <section className="page-surface wrong-book-page"><PageTitle eyebrow="答错不是失败，而是找到要复习的地方" title="智能错题本" subtitle="自动记录错误选项，并按知识点安排再次练习" icon="🎒" /><div className="wrong-summary"><div><strong>{pending.length}</strong><span>待复习</span></div><div><strong>{mastered.length}</strong><span>已掌握</span></div><div><strong>{records.reduce((total, record) => total + record.attempts, 0)}</strong><span>累计发现错误</span></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌱</span><h2>错题本还是空的</h2><p>做题时如果答错，系统会自动把题目和知识点放到这里，不需要家长手动整理。</p><button onClick={onCourse} type="button">去课程中心练习</button></div> : <><div className="review-plan"><span>🌷</span><div><strong>森林复习节奏</strong><p>首次答错后当天重做；仍未掌握则安排1天、3天和7天后复习。</p></div></div><div className="wrong-list">{records.map((record) => <article className={record.mastered ? "wrong-card mastered" : "wrong-card"} key={record.question.id}><div className="wrong-card-top"><span>{record.mastered ? "✅" : "📝"}</span><div><small>{record.question.grade} · {record.question.subject} · {record.question.knowledgePoint}</small><strong>{record.question.title}</strong></div><em>{record.mastered ? "已掌握" : `错${record.attempts}次`}</em></div><p className="wrong-prompt">{record.question.prompt}</p><div className="wrong-answer"><span>上次选择：<b>{record.selectedAnswer}</b></span><span>正确答案：<b>{record.question.answer}</b></span></div><footer><small>{record.mastered ? "可以随时再复习巩固" : record.attempts > 1 ? "建议：今天再练，明天继续复习" : "建议：今天完成第一次订正"}</small><button onClick={() => onRetry(record)} type="button">{record.mastered ? "再次巩固" : "马上订正"} →</button></footer></article>)}</div><p className="device-note">🔒 当前试用版记录保存在这台设备；正式账号版将同步到家长中心。</p></>}
+  return <section className="page-surface wrong-book-page"><PageTitle eyebrow="答错不是失败，而是找到要复习的地方" title="智能错题本" subtitle="自动记录错误选项，并按知识点安排再次练习" icon="🎒" /><div className="wrong-summary"><div><strong>{pending.length}</strong><span>待复习</span></div><div><strong>{mastered.length}</strong><span>已掌握</span></div><div><strong>{records.reduce((total, record) => total + record.attempts, 0)}</strong><span>累计发现错误</span></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌱</span><h2>错题本还是空的</h2><p>做题时如果答错，系统会自动把题目和知识点放到这里，不需要家长手动整理。</p><button onClick={onCourse} type="button">去课程中心练习</button></div> : <><div className="review-plan"><span>🌷</span><div><strong>森林复习节奏</strong><p>首次答错后当天重做；订正后安排1天、3天和7天巩固。</p></div><button onClick={onGarden} type="button">查看复习花园 →</button></div><div className="wrong-list">{records.map((record) => <article className={record.mastered ? "wrong-card mastered" : "wrong-card"} key={record.question.id}><div className="wrong-card-top"><span>{record.mastered ? "✅" : "📝"}</span><div><small>{record.question.grade} · {record.question.subject} · {record.question.knowledgePoint}</small><strong>{record.question.title}</strong></div><em>{record.mastered ? "已订正" : `错${record.attempts}次`}</em></div><p className="wrong-prompt">{record.question.prompt}</p><div className="wrong-answer"><span>上次选择：<b>{record.selectedAnswer}</b></span><span>正确答案：<b>{record.question.answer}</b></span></div><footer><small>{record.mastered ? "已经进入间隔复习计划" : record.attempts > 1 ? "建议：今天再练，明天继续复习" : "建议：今天完成第一次订正"}</small><button onClick={() => onRetry(record)} type="button">{record.mastered ? "再次巩固" : "马上订正"} →</button></footer></article>)}</div><p className="device-note">🔒 当前试用版记录保存在这台设备；正式账号版将同步到家长中心。</p></>}
+  </section>;
+}
+
+function ReviewGarden({ records, onRetry, onCourse }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void }) {
+  const now = SESSION_NOW;
+  const due = records.filter((record) => !record.mastered || (record.nextReviewAt ? new Date(record.nextReviewAt).getTime() <= now : false));
+  const upcoming = records.filter((record) => record.mastered && record.nextReviewAt && new Date(record.nextReviewAt).getTime() > now);
+  const completed = records.filter((record) => record.mastered && !record.nextReviewAt);
+  const relativeDay = (date: string | null | undefined) => {
+    if (!date) return "复习完成";
+    const days = Math.max(1, Math.ceil((new Date(date).getTime() - now) / 86400000));
+    return `${days}天后`;
+  };
+  return <section className="page-surface review-garden-page"><PageTitle eyebrow="系统替家长记住什么时候复习" title="复习花园" subtitle="答错当天订正，答对后在1天、3天、7天再次巩固" icon="🌷" /><div className="garden-summary"><div><span>🌱</span><strong>{due.length}</strong><small>今天待复习</small></div><div><span>🌿</span><strong>{upcoming.length}</strong><small>后续已安排</small></div><div><span>🌳</span><strong>{completed.length}</strong><small>完成复习周期</small></div></div><div className="review-timeline"><div className="active"><span>今天</span><strong>发现错误并订正</strong></div><i>→</i><div><span>1天后</span><strong>第一次巩固</strong></div><i>→</i><div><span>3天后</span><strong>第二次巩固</strong></div><i>→</i><div><span>7天后</span><strong>长期记忆检查</strong></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌼</span><h2>花园还没有复习任务</h2><p>孩子答错题目后，系统会自动在这里种下一株“复习小苗”。</p><button onClick={onCourse} type="button">去完成一节课程</button></div> : <><section className="garden-section"><div className="garden-heading"><div><span>☀️</span><div><small>今日任务</small><h2>现在可以复习</h2></div></div><em>{due.length}题</em></div>{due.length === 0 ? <p className="garden-clear">今天的复习已经完成，可以休息一下啦。</p> : <div className="garden-cards">{due.map((record) => <article key={record.question.id}><span>📝</span><div><small>{record.question.grade} · {record.question.subject}</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div><button onClick={() => onRetry(record)} type="button">开始复习</button></article>)}</div>}</section><section className="garden-section"><div className="garden-heading"><div><span>🗓️</span><div><small>自动安排</small><h2>接下来的复习</h2></div></div><em>{upcoming.length}题</em></div>{upcoming.length === 0 ? <p className="garden-clear">暂无等待中的任务。</p> : <div className="garden-cards upcoming">{upcoming.map((record) => <article key={record.question.id}><span>🌿</span><div><small>{relativeDay(record.nextReviewAt)} · 第{(record.reviewStage ?? 0) + 1}次巩固</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div><em>等待开放</em></article>)}</div>}</section></>}
   </section>;
 }
 
