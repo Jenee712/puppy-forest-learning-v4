@@ -24,10 +24,10 @@ const navGroups = [
   { label: "森林乐园", items: [["🌷", "复习花园"], ["✨", "贴纸册"], ["🛡️", "家长中心"]] },
 ];
 
-const tasks = [
-  { icon: "🔤", title: "字母探险", detail: "认识 M · 找到 moon", minutes: "6分钟", color: "yellow" },
-  { icon: "🧮", title: "数学小站", detail: "图形规律 · 接着排", minutes: "8分钟", color: "blue" },
-  { icon: "📚", title: "故事树屋", detail: "《会飞的小种子》", minutes: "7分钟", color: "pink" },
+const taskLooks = [
+  { icon: "📚", minutes: "7分钟", color: "pink" },
+  { icon: "🧮", minutes: "8分钟", color: "blue" },
+  { icon: "🔤", minutes: "6分钟", color: "yellow" },
 ];
 
 const SESSION_NOW = Date.now();
@@ -78,6 +78,7 @@ export function V4Dashboard() {
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
+  const dailyQuestions = useMemo(() => [0, 1, 2].map((index) => getDailyQuestion(index, selectedGrade)), [selectedGrade]);
   const pendingWrongCount = wrongRecords.filter((record) => !record.mastered).length;
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export function V4Dashboard() {
   }, [recordsReady, wrongRecords]);
 
   const openTask = (index: number) => {
-    setActiveQuestion(getDailyQuestion(index));
+    setActiveQuestion(dailyQuestions[index] ?? dailyQuestions[0]);
     setActiveTaskIndex(index);
     setSelectedAnswer(null);
     setAnswerState(null);
@@ -149,6 +150,12 @@ export function V4Dashboard() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const changeGrade = (grade: string) => {
+    setSelectedGrade(grade);
+    setCompletedTasks([]);
+    setSelectedCourse(null);
+  };
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -182,9 +189,9 @@ export function V4Dashboard() {
                 <Image src="/og.png" alt="小狗、小猫和小兔在森林里一起学习，小火车从身边经过" width={1200} height={630} priority unoptimized />
                 <div className="visual-hero-action"><div><span>下午好，小鹿 Leo</span><strong>今天有 {3 - completedTasks.length} 个森林任务</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
               </section>
-              <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={setSelectedGrade} />
+              <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={changeGrade} />
               <section className="lower-grid">
-                <TaskPanel completedTasks={completedTasks} onOpen={openTask} />
+                <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} onOpen={openTask} />
                 <div className="smart-panel"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2><p>核心题库保证基础，DeepSeek按薄弱知识点生成练习，答错后自动进入复习计划。</p><div className="smart-flow"><span>📚<small>核心题库</small></span><i>→</i><span>🧠<small>智能出题</small></span><i>→</i><span>🌷<small>自动复习</small></span></div><button onClick={() => setShowPlans(true)} type="button">查看永久解锁方案</button></div>
               </section>
             </>
@@ -194,7 +201,7 @@ export function V4Dashboard() {
             <section className="page-surface today-page">
               <PageTitle eyebrow="系统已经为孩子准备好了" title="今日学习" subtitle={`${currentGrade.id} · ${currentGrade.school} · 预计21分钟`} icon="☀️" />
               <div className="today-summary"><div><strong>{completedTasks.length}<small>/ 3</small></strong><span>今日完成</span></div><div><strong>{42 + completedTasks.length * 5}</strong><span>森林金币</span></div><div><strong>6</strong><span>连续学习</span></div></div>
-              <TaskPanel completedTasks={completedTasks} onOpen={openTask} standalone />
+              <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} onOpen={openTask} standalone />
               <div className="gentle-note"><span>🌿</span><div><strong>学完记得看远处、活动一下</strong><p>每完成一个任务，系统会根据表现调整下一次练习。</p></div></div>
             </section>
           )}
@@ -206,7 +213,7 @@ export function V4Dashboard() {
               ) : (
                 <>
                   <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
-                  <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => { setSelectedGrade(grade.id); setSelectedCourse(null); }} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
+                  <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => changeGrade(grade.id)} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
                   <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div><button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button></div>
                   <div className="course-grid">{courses.map((course) => <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span>已完成 {course.progress}%</span><button onClick={() => { setSelectedCourse(course); window.scrollTo({ top: 0, behavior: "smooth" }); }} type="button">进入课程 →</button></footer></article>)}</div>
                 </>
@@ -273,8 +280,8 @@ function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grad
   </div>;
 }
 
-function TaskPanel({ completedTasks, onOpen, standalone = false }: { completedTasks: number[]; onOpen: (index: number) => void; standalone?: boolean }) {
-  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">系统已经准备好了</span><h2>今日学习任务</h2></div><span className="task-count">{completedTasks.length} / 3 完成</span></div><div className="task-list">{tasks.map((task, index) => { const done = completedTasks.includes(index); return <button className={done ? "task-row done" : "task-row"} key={task.title} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${task.color}`}>{done ? "✓" : task.icon}</span><span><strong>{task.title}</strong><small>{done ? "完成得很棒，可以再次练习" : task.detail}</small></span><em>{task.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></div>;
+function TaskPanel({ completedTasks, questions, onOpen, standalone = false }: { completedTasks: number[]; questions: QuestionItem[]; onOpen: (index: number) => void; standalone?: boolean }) {
+  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">系统已按当前等级匹配难度</span><h2>今日学习任务</h2></div><span className="task-count">{completedTasks.length} / 3 完成</span></div><div className="task-list">{questions.map((question, index) => { const done = completedTasks.includes(index); const look = taskLooks[index] ?? taskLooks[0]; return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.subject} · ${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></div>;
 }
 
 function PageTitle({ eyebrow, title, subtitle, icon }: { eyebrow: string; title: string; subtitle: string; icon: string }) {

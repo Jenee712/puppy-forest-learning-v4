@@ -125,8 +125,17 @@ const englishExtensions: Record<string, Array<Omit<QuestionItem, "id" | "grade" 
   ],
 };
 
-export function getDailyQuestion(index: number) {
-  return dailyQuestions[index] ?? dailyQuestions[0];
+export function getDailyQuestion(index: number, grade = "G3") {
+  if (!/^G[1-8]$/.test(grade)) return dailyQuestions[index] ?? dailyQuestions[0];
+  const preschool = grade === "G1" || grade === "G2";
+  const courseNames = preschool ? ["语言表达", "数量与空间", "英语兴趣"] : ["语文", "数学", ["G3", "G4"].includes(grade) ? "英语兴趣" : "英语"];
+  const courseName = courseNames[index] ?? courseNames[0];
+  if (index === 2) {
+    const englishQuestions = getCourseQuestions(courseName, grade);
+    const questionIndex = ["G3", "G4"].includes(grade) && englishQuestions.length > 1 ? 1 : 0;
+    return englishQuestions[questionIndex];
+  }
+  return getCourseQuestion(courseName, grade);
 }
 
 export function getCourseQuestion(courseName: string, grade: string): QuestionItem {
