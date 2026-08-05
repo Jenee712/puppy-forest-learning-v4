@@ -336,7 +336,7 @@ function PlanModal({ onClose }: { onClose: () => void }) {
 function LessonModal({ question, notice, selectedAnswer, answerState, aiLoading, onSelect, onCheck, onSmartNext, onFinish, onClose }: { question: QuestionItem; notice: string | null; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; aiLoading: boolean; onSelect: (answer: string) => void; onCheck: () => void; onSmartNext: () => void; onFinish: () => void; onClose: () => void }) {
   const isEarlyLearner = /^(G1|G2|G3)(?:$|-)/.test(question.grade);
   const previewVocabulary = question.subject.includes("英语") ? question.vocabulary?.slice(0, 3) ?? [] : [];
-  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={getTtsLanguage(question.prompt)} segment="sentence" label="听题目" autoPlay={isEarlyLearner} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} segment="word" label={`听 ${item.term}`} />)}</div>}<QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">提交答案</button>}</section></div>;
+  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={getTtsLanguage(question.prompt)} segment="sentence" label="听题目" autoPlay={isEarlyLearner} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} segment="word" label={`听 ${item.term}`} />)}</div>}<QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}<FeedbackAudio state={answerState} /></div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">提交答案</button>}</section></div>;
 }
 
 function MathModel({ question }: { question: QuestionItem }) {
@@ -435,6 +435,46 @@ function TtsButton({ text, segment, label, language = "en", autoPlay = false }: 
 
   const textLabel = status === "loading" ? "生成中" : status === "playing" ? "停止" : status === "error" ? "稍后再试" : label;
   return <button className={`tts-button ${status}`} onClick={() => void play(false)} disabled={status === "loading"} aria-label={`${label}：${text}`} type="button"><span aria-hidden="true">{status === "playing" ? "■" : "🔊"}</span>{textLabel}</button>;
+}
+
+function FeedbackAudio({ state }: { state: "correct" | "wrong" }) {
+  const message = state === "correct" ? "答对啦，真棒！继续保持！" : "没关系，我们一起看看。学会了就是进步！";
+
+  useEffect(() => {
+    playFeedbackTone(state);
+  }, [state]);
+
+  return <div className="feedback-audio"><TtsButton text={message} language="zh" segment="sentence" label={state === "correct" ? "再听鼓励" : "再听提示"} autoPlay /></div>;
+}
+
+function playFeedbackTone(state: "correct" | "wrong") {
+  try {
+    const AudioContextConstructor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    const context = new AudioContextConstructor();
+    const notes = state === "correct"
+      ? [{ frequency: 523.25, delay: 0, duration: .16 }, { frequency: 659.25, delay: .13, duration: .17 }, { frequency: 783.99, delay: .27, duration: .25 }]
+      : [{ frequency: 493.88, delay: 0, duration: .2 }, { frequency: 392, delay: .17, duration: .3 }];
+
+    notes.forEach(({ frequency, delay, duration }) => {
+      const start = context.currentTime + delay;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = state === "correct" ? "triangle" : "sine";
+      oscillator.frequency.setValueAtTime(frequency, start);
+      gain.gain.setValueAtTime(.0001, start);
+      gain.gain.exponentialRampToValueAtTime(state === "correct" ? .055 : .035, start + .025);
+      gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(start);
+      oscillator.stop(start + duration + .02);
+    });
+
+    window.setTimeout(() => void context.close(), 900);
+  } catch {
+    // Some browsers block generated audio until the child taps again; the replay button remains available.
+  }
 }
 
 function ParentCenter({ records, grade, completedTasks, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; onGarden: () => void }) {
