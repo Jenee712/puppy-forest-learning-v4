@@ -32,6 +32,14 @@ const taskLooks = [
 
 const SESSION_NOW = Date.now();
 
+function normalizeAnswer(value: string) {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
+
+function formatAnswer(value: string) {
+  return value.replaceAll(" | ", " → ");
+}
+
 
 const products = [
   { name: "首级永久版", price: "29.9", note: "任选1个等级 · 1个孩子", accent: false },
@@ -114,7 +122,7 @@ export function V4Dashboard() {
 
   const checkAnswer = () => {
     if (!activeQuestion || !selectedAnswer) return;
-    const correct = selectedAnswer === activeQuestion.answer;
+    const correct = normalizeAnswer(selectedAnswer) === normalizeAnswer(activeQuestion.answer);
     setAnswerState(correct ? "correct" : "wrong");
     setWrongRecords((records) => {
       const existing = records.find((record) => record.question.id === activeQuestion.id);
@@ -293,7 +301,17 @@ function PlanModal({ onClose }: { onClose: () => void }) {
 }
 
 function LessonModal({ question, selectedAnswer, answerState, onSelect, onCheck, onFinish, onClose }: { question: QuestionItem; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void; onCheck: () => void; onFinish: () => void; onClose: () => void }) {
-  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>1 / 1</em></div><div className="lesson-progress"><i /></div><div className="question-card"><span className="question-visual">{question.visual}</span><h2>{question.prompt}</h2><div className="answer-grid">{question.options.map((option) => <button className={`${selectedAnswer === option ? "selected" : ""} ${answerState && option === question.answer ? "correct" : ""} ${answerState === "wrong" && selectedAnswer === option ? "wrong" : ""}`} key={option} onClick={() => onSelect(option)} disabled={answerState !== null} type="button">{option}</button>)}</div>{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p></div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div><button className="lesson-submit" disabled={!selectedAnswer} onClick={answerState ? onFinish : onCheck} type="button">{answerState ? "完成学习，收下本题词汇" : "提交答案"}</button></section></div>;
+  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>1 / 1</em></div><div className="lesson-progress"><i /></div><div className="question-card"><span className="question-visual">{question.visual}</span><h2>{question.prompt}</h2><QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div><button className="lesson-submit" disabled={!selectedAnswer} onClick={answerState ? onFinish : onCheck} type="button">{answerState ? "完成学习，收下本题词汇" : "提交答案"}</button></section></div>;
+}
+
+function QuestionAnswer({ question, selectedAnswer, answerState, onSelect }: { question: QuestionItem; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void }) {
+  if (question.type === "fill_blank") return <div className="fill-answer"><label htmlFor={`answer-${question.id}`}>填写答案</label><input id={`answer-${question.id}`} value={selectedAnswer ?? ""} onChange={(event) => onSelect(event.target.value)} disabled={answerState !== null} placeholder="在这里输入英文答案" autoComplete="off" /></div>;
+  if (question.type === "ordering") {
+    const picked = selectedAnswer ? selectedAnswer.split(" | ") : [];
+    const available = question.options.filter((option) => !picked.includes(option));
+    return <div className="ordering-answer"><div className={picked.length ? "order-slot has-answer" : "order-slot"}>{picked.length ? picked.map((word, index) => <button onClick={() => onSelect(picked.filter((_, itemIndex) => itemIndex !== index).join(" | "))} disabled={answerState !== null} type="button" key={`${word}-${index}`}>{word}<span>×</span></button>) : <span>按顺序点击下方词语</span>}</div><div className="word-bank">{available.map((word) => <button onClick={() => onSelect([...picked, word].join(" | "))} disabled={answerState !== null} type="button" key={word}>{word}</button>)}</div></div>;
+  }
+  return <div className="answer-grid">{question.options.map((option) => <button className={`${selectedAnswer === option ? "selected" : ""} ${answerState && option === question.answer ? "correct" : ""} ${answerState === "wrong" && selectedAnswer === option ? "wrong" : ""}`} key={option} onClick={() => onSelect(option)} disabled={answerState !== null} type="button">{option}</button>)}</div>;
 }
 
 function DictionaryExpansion({ question }: { question: QuestionItem }) {
