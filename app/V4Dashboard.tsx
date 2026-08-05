@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCourseQuestions, getDailyQuestion, type QuestionItem } from "../data/questionBank";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
+type WrongRecord = { question: QuestionItem; selectedAnswer: string; attempts: number; mastered: boolean; lastWrongAt: string };
 
 const grades: Grade[] = [
   { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯" },
@@ -70,9 +71,28 @@ export function V4Dashboard() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answerState, setAnswerState] = useState<"correct" | "wrong" | null>(null);
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
+  const [wrongRecords, setWrongRecords] = useState<WrongRecord[]>([]);
+  const [recordsReady, setRecordsReady] = useState(false);
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
+  const pendingWrongCount = wrongRecords.filter((record) => !record.mastered).length;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const stored = window.localStorage.getItem("puppy-forest-wrong-records");
+        if (stored) setWrongRecords(JSON.parse(stored) as WrongRecord[]);
+      } catch { /* 当前设备无法读取时，仍可在本次使用中记录 */ }
+      setRecordsReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!recordsReady) return;
+    try { window.localStorage.setItem("puppy-forest-wrong-records", JSON.stringify(wrongRecords)); } catch { /* 当前设备不支持持久保存时忽略 */ }
+  }, [recordsReady, wrongRecords]);
 
   const openTask = (index: number) => {
     setActiveQuestion(getDailyQuestion(index));
@@ -91,7 +111,21 @@ export function V4Dashboard() {
 
   const checkAnswer = () => {
     if (!activeQuestion || !selectedAnswer) return;
-    setAnswerState(selectedAnswer === activeQuestion.answer ? "correct" : "wrong");
+    const correct = selectedAnswer === activeQuestion.answer;
+    setAnswerState(correct ? "correct" : "wrong");
+    setWrongRecords((records) => {
+      const existing = records.find((record) => record.question.id === activeQuestion.id);
+      if (correct) return existing ? records.map((record) => record.question.id === activeQuestion.id ? { ...record, mastered: true } : record) : records;
+      if (existing) return records.map((record) => record.question.id === activeQuestion.id ? { ...record, selectedAnswer, attempts: record.attempts + 1, mastered: false, lastWrongAt: new Date().toISOString() } : record);
+      return [{ question: activeQuestion, selectedAnswer, attempts: 1, mastered: false, lastWrongAt: new Date().toISOString() }, ...records];
+    });
+  };
+
+  const retryWrongQuestion = (record: WrongRecord) => {
+    setActiveQuestion(record.question);
+    setActiveTaskIndex(null);
+    setSelectedAnswer(null);
+    setAnswerState(null);
   };
 
   const finishTask = () => {
@@ -118,7 +152,7 @@ export function V4Dashboard() {
               <p>{group.label}</p>
               {group.items.map(([icon, label]) => (
                 <button className={activeNav === label ? "nav-item active" : "nav-item"} key={label} onClick={() => goTo(label)} type="button">
-                  <span aria-hidden="true">{icon}</span>{label}{label === "错题本" && <em>3</em>}
+                  <span aria-hidden="true">{icon}</span>{label}{label === "错题本" && pendingWrongCount > 0 && <em>{pendingWrongCount}</em>}
                 </button>
               ))}
             </div>
@@ -173,7 +207,9 @@ export function V4Dashboard() {
             </section>
           )}
 
-          {!["首页", "今日学习", "课程中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
+          {activeNav === "错题本" && <WrongBook records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} />}
+
+          {!["首页", "今日学习", "课程中心", "错题本"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
           {activeQuestion && <LessonModal question={activeQuestion} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); }} />}
@@ -181,7 +217,7 @@ export function V4Dashboard() {
       </main>
 
       <nav className="mobile-nav" aria-label="手机导航">
-        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本馆", "绘本馆"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={label} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
+        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🎒", pendingWrongCount > 0 ? `错题${pendingWrongCount}` : "错题", "错题本"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
       </nav>
     </div>
   );
@@ -247,6 +283,13 @@ function LessonModal({ question, selectedAnswer, answerState, onSelect, onCheck,
 
 function DictionaryExpansion({ question }: { question: QuestionItem }) {
   return <section className="dictionary-panel"><header><span>📖</span><div><small>本题词汇扩展</small><strong>AI 小词典</strong></div><em>{question.vocabulary?.length ?? 0} 个重点</em></header><div className="dictionary-grid">{question.vocabulary?.map((item) => <article className="dictionary-card" key={item.term}><div className="dictionary-term"><div><strong>{item.term}</strong>{item.phonetic && <span>{item.phonetic}</span>}</div><em>{item.tag}</em></div><p className="dictionary-meaning">{item.meaning}</p><p className="dictionary-expansion">💡 {item.expansion}</p><div className="dictionary-example"><strong>{item.example}</strong><span>{item.exampleMeaning}</span></div></article>)}</div>{question.grammarTip && <aside className="grammar-tip"><span>🧩</span><div><small>{question.grammarTip.title}</small><strong>{question.grammarTip.pattern}</strong><p>{question.grammarTip.explanation}</p></div></aside>}</section>;
+}
+
+function WrongBook({ records, onRetry, onCourse }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void }) {
+  const pending = records.filter((record) => !record.mastered);
+  const mastered = records.filter((record) => record.mastered);
+  return <section className="page-surface wrong-book-page"><PageTitle eyebrow="答错不是失败，而是找到要复习的地方" title="智能错题本" subtitle="自动记录错误选项，并按知识点安排再次练习" icon="🎒" /><div className="wrong-summary"><div><strong>{pending.length}</strong><span>待复习</span></div><div><strong>{mastered.length}</strong><span>已掌握</span></div><div><strong>{records.reduce((total, record) => total + record.attempts, 0)}</strong><span>累计发现错误</span></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌱</span><h2>错题本还是空的</h2><p>做题时如果答错，系统会自动把题目和知识点放到这里，不需要家长手动整理。</p><button onClick={onCourse} type="button">去课程中心练习</button></div> : <><div className="review-plan"><span>🌷</span><div><strong>森林复习节奏</strong><p>首次答错后当天重做；仍未掌握则安排1天、3天和7天后复习。</p></div></div><div className="wrong-list">{records.map((record) => <article className={record.mastered ? "wrong-card mastered" : "wrong-card"} key={record.question.id}><div className="wrong-card-top"><span>{record.mastered ? "✅" : "📝"}</span><div><small>{record.question.grade} · {record.question.subject} · {record.question.knowledgePoint}</small><strong>{record.question.title}</strong></div><em>{record.mastered ? "已掌握" : `错${record.attempts}次`}</em></div><p className="wrong-prompt">{record.question.prompt}</p><div className="wrong-answer"><span>上次选择：<b>{record.selectedAnswer}</b></span><span>正确答案：<b>{record.question.answer}</b></span></div><footer><small>{record.mastered ? "可以随时再复习巩固" : record.attempts > 1 ? "建议：今天再练，明天继续复习" : "建议：今天完成第一次订正"}</small><button onClick={() => onRetry(record)} type="button">{record.mastered ? "再次巩固" : "马上订正"} →</button></footer></article>)}</div><p className="device-note">🔒 当前试用版记录保存在这台设备；正式账号版将同步到家长中心。</p></>}
+  </section>;
 }
 
 function FeaturePage({ name, onBack }: { name: string; onBack: () => void }) {
