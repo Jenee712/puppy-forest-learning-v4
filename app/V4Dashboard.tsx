@@ -37,7 +37,7 @@ function normalizeAnswer(value: string) {
 }
 
 function formatAnswer(value: string) {
-  return value.replaceAll(" | ", " → ");
+  return value.replaceAll(" || ", "；").replaceAll("=", " → ").replaceAll(" | ", " → ");
 }
 
 
@@ -317,7 +317,17 @@ function QuestionAnswer({ question, selectedAnswer, answerState, onSelect }: { q
     const available = question.options.filter((option) => !picked.includes(option));
     return <div className="ordering-answer"><div className={picked.length ? "order-slot has-answer" : "order-slot"}>{picked.length ? picked.map((word, index) => <button onClick={() => onSelect(picked.filter((_, itemIndex) => itemIndex !== index).join(" | "))} disabled={answerState !== null} type="button" key={`${word}-${index}`}>{word}<span>×</span></button>) : <span>按顺序点击下方词语</span>}</div><div className="word-bank">{available.map((word) => <button onClick={() => onSelect([...picked, word].join(" | "))} disabled={answerState !== null} type="button" key={word}>{word}</button>)}</div></div>;
   }
-  return <div className="answer-grid">{question.options.map((option) => <button className={`${selectedAnswer === option ? "selected" : ""} ${answerState && option === question.answer ? "correct" : ""} ${answerState === "wrong" && selectedAnswer === option ? "wrong" : ""}`} key={option} onClick={() => onSelect(option)} disabled={answerState !== null} type="button">{option}</button>)}</div>;
+  if (question.type === "matching" && question.matchingPairs) {
+    const selections = Object.fromEntries((selectedAnswer ?? "").split(" || ").filter(Boolean).map((pair) => pair.split("=")));
+    const choices = [...question.matchingPairs.map((pair) => pair.right)].reverse();
+    const updateMatch = (left: string, right: string) => {
+      const next = { ...selections, [left]: right };
+      onSelect(question.matchingPairs?.map((pair) => `${pair.left.split(" ")[0]}=${next[pair.left.split(" ")[0]] ?? ""}`).filter((pair) => !pair.endsWith("=")).join(" || ") ?? "");
+    };
+    return <div className="matching-answer">{question.matchingPairs.map((pair) => { const key = pair.left.split(" ")[0]; return <label key={pair.left}><strong>{pair.left}</strong><span>配对</span><select value={selections[key] ?? ""} onChange={(event) => updateMatch(key, event.target.value)} disabled={answerState !== null}><option value="">请选择</option>{choices.map((choice) => <option value={choice} key={choice}>{choice}</option>)}</select></label>; })}</div>;
+  }
+  const answerClass = question.type === "true_false" ? "answer-grid true-false" : "answer-grid";
+  return <div className={answerClass}>{question.options.map((option) => <button className={`${selectedAnswer === option ? "selected" : ""} ${answerState && option === question.answer ? "correct" : ""} ${answerState === "wrong" && selectedAnswer === option ? "wrong" : ""}`} key={option} onClick={() => onSelect(option)} disabled={answerState !== null} type="button">{question.type === "true_false" && <span>{option === "正确" ? "✓" : "×"}</span>}{option}</button>)}</div>;
 }
 
 function DictionaryExpansion({ question }: { question: QuestionItem }) {

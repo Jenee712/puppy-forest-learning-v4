@@ -3,7 +3,7 @@ export type QuestionItem = {
   grade: string;
   subject: string;
   knowledgePoint: string;
-  type: "single_choice" | "fill_blank" | "ordering";
+  type: "single_choice" | "fill_blank" | "ordering" | "true_false" | "matching";
   difficulty: 1 | 2 | 3;
   source: "local_core";
   title: string;
@@ -33,6 +33,7 @@ export type QuestionItem = {
     values: Array<{ label: string; value: string }>;
     relation: string;
   };
+  matchingPairs?: Array<{ left: string; right: string }>;
 };
 
 const dailyQuestions: QuestionItem[] = [
@@ -112,6 +113,8 @@ const englishExtensions: Record<string, Array<Omit<QuestionItem, "id" | "grade" 
   G4: [
     { subject: "英语兴趣", knowledgePoint: "能力表达", type: "single_choice", difficulty: 1, source: "local_core", title: "I can do it", prompt: "小鸟会飞，可以怎么说？", visual: "🐦 ✈️", options: ["The bird can fly.", "The bird can swim.", "The bird is a fish."], answer: "The bird can fly.", explanation: "can 后面接动词原形 fly，表示“会飞”。", vocabulary: [{ term: "can fly", phonetic: "/kæn flaɪ/", tag: "动词词组", meaning: "会飞", expansion: "can 表示能力，后面接动词原形。", example: "A butterfly can fly.", exampleMeaning: "蝴蝶会飞。" }], grammarTip: { title: "表达能力", pattern: "主语 + can + 动词原形", explanation: "can 后面的动词不加-s，也不加-ing。" } },
     { subject: "英语兴趣", knowledgePoint: "一般疑问句", type: "single_choice", difficulty: 1, source: "local_core", title: "Do you like apples?", prompt: "— Do you like apples? — ____", visual: "🍎 🙂", options: ["Yes, I do.", "Yes, I am.", "I am ten."], answer: "Yes, I do.", explanation: "Do you...? 的肯定回答使用 Yes, I do。", vocabulary: [{ term: "Do you like...?", phonetic: "/duː juː laɪk/", tag: "问句", meaning: "你喜欢……吗？", expansion: "可以替换最后的事物询问不同喜好。", example: "Do you like music?", exampleMeaning: "你喜欢音乐吗？" }], grammarTip: { title: "一般疑问句回答", pattern: "Do you...? — Yes, I do. / No, I don't.", explanation: "问句由 do 开头，简短回答也要使用 do。" } },
+    { subject: "英语兴趣", knowledgePoint: "动物与能力配对", type: "matching", difficulty: 1, source: "local_core", title: "Animal abilities", prompt: "把每种动物和它会做的事情配成一组。", visual: "🐦 · 🐟 · 🐰", options: [], answer: "bird=can fly || fish=can swim || rabbit=can jump", explanation: "bird 会飞，fish 会游泳，rabbit 会跳。", matchingPairs: [{ left: "bird 🐦", right: "can fly" }, { left: "fish 🐟", right: "can swim" }, { left: "rabbit 🐰", right: "can jump" }], vocabulary: [{ term: "ability", phonetic: "/əˈbɪləti/", tag: "名词", meaning: "能力", expansion: "can + 动词原形可以表达会做某事。", example: "Flying is a bird's ability.", exampleMeaning: "飞翔是鸟的一种能力。" }], grammarTip: { title: "动物的能力", pattern: "A / An + 动物 + can + 动词原形", explanation: "can 后接 fly、swim、jump 等动词原形。" } },
+    { subject: "英语兴趣", knowledgePoint: "can句型判断", type: "true_false", difficulty: 1, source: "local_core", title: "Can or cannot?", prompt: "判断句子是否正确：A fish can swim.", visual: "🐟 🌊", options: ["正确", "错误"], answer: "正确", explanation: "鱼会游泳，句子意思和语法都正确。", vocabulary: [{ term: "swim", phonetic: "/swɪm/", tag: "动词", meaning: "游泳", expansion: "can swim 表示“会游泳”。", example: "A duck can swim.", exampleMeaning: "鸭子会游泳。" }], grammarTip: { title: "can句型", pattern: "主语 + can + 动词原形", explanation: "can 后面的 swim 使用原形，不能写成 swims。" } },
   ],
   G5: [
     { subject: "英语", knowledgePoint: "there be句型", type: "single_choice", difficulty: 2, source: "local_core", title: "In our classroom", prompt: "There ____ two maps on the wall.", visual: "🗺️ 🗺️  on the wall", options: ["is", "are", "be"], answer: "are", explanation: "two maps 是复数，所以使用 There are。", vocabulary: [{ term: "on the wall", phonetic: "/ɒn ðə wɔːl/", tag: "位置词组", meaning: "在墙上", expansion: "on 强调物体附着在表面。", example: "There is a clock on the wall.", exampleMeaning: "墙上有一个钟。" }], grammarTip: { title: "There be句型", pattern: "There is + 单数 / There are + 复数", explanation: "be动词要和后面紧接的名词保持单复数一致。" } },
