@@ -149,23 +149,31 @@ export function V4Dashboard() {
     setPracticeNotice(null);
   };
 
-  const openSmartPractice = async (record: WrongRecord) => {
-    setAiLoadingId(record.question.id);
+  const generateSmartQuestion = async (question: QuestionItem, successMessage: string) => {
+    setAiLoadingId(question.id);
     try {
-      const response = await fetch("/api/generate-question", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: record.question.grade, subject: record.question.subject, knowledgePoint: record.question.knowledgePoint, difficulty: record.question.difficulty, avoidTitles: [record.question.title] }) });
+      const response = await fetch("/api/generate-question", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: question.grade, subject: question.subject, knowledgePoint: question.knowledgePoint, difficulty: question.difficulty, avoidTitles: [question.title] }) });
       const data = await response.json() as { question?: QuestionItem; fallback?: boolean; reason?: string };
       if (!response.ok || !data.question) throw new Error("generate_failed");
       setActiveQuestion(data.question);
-      setPracticeNotice(data.fallback ? (data.reason ?? "已切换到本地核心题") : "已根据这个薄弱知识点生成一道新题");
+      setPracticeNotice(data.fallback ? (data.reason ?? "已切换到本地核心题") : successMessage);
     } catch {
-      setActiveQuestion(record.question);
-      setPracticeNotice("网络暂时不稳定，先复习原题");
+      setActiveQuestion(question);
+      setPracticeNotice("网络暂时不稳定，已切换到本地核心题");
     } finally {
       setActiveTaskIndex(null);
       setSelectedAnswer(null);
       setAnswerState(null);
       setAiLoadingId(null);
     }
+  };
+
+  const openSmartPractice = (record: WrongRecord) => generateSmartQuestion(record.question, "已根据这个薄弱知识点生成一道新题");
+
+  const continueWithSmartPractice = () => {
+    if (!activeQuestion) return;
+    if (activeTaskIndex !== null) setCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
+    void generateSmartQuestion(activeQuestion, "DeepSeek已生成一道同知识点进阶题");
   };
 
   const finishTask = () => {
@@ -225,7 +233,7 @@ export function V4Dashboard() {
               <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={changeGrade} />
               <section className="lower-grid">
                 <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} onOpen={openTask} />
-                <div className="smart-panel"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2><p>核心题库保证基础，DeepSeek按薄弱知识点生成练习，答错后自动进入复习计划。</p><div className="smart-flow"><span>📚<small>核心题库</small></span><i>→</i><span>🧠<small>智能出题</small></span><i>→</i><span>🌷<small>自动复习</small></span></div><button onClick={() => setShowPlans(true)} type="button">查看永久解锁方案</button></div>
+                <div className="smart-panel"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2><p>核心题库保证基础，DeepSeek按薄弱知识点生成练习，答错后自动进入复习计划。</p><div className="smart-flow"><span>📚<small>核心题库</small></span><i>→</i><span>🧠<small>智能出题</small></span><i>→</i><span>🌷<small>自动复习</small></span></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "DeepSeek已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null} type="button">{aiLoadingId === dailyQuestions[0].id ? "正在智能出题…" : "✨ DeepSeek出一道题"}</button><button className="outline" onClick={() => setShowPlans(true)} type="button">查看永久解锁方案</button></div></div>
               </section>
             </>
           )}
@@ -242,7 +250,7 @@ export function V4Dashboard() {
           {activeNav === "课程中心" && (
             <section className="page-surface course-page">
               {selectedCourse ? (
-                <CourseDetail course={selectedCourse} grade={currentGrade} onBack={() => setSelectedCourse(null)} onStart={(lessonIndex) => openCourse(selectedCourse, lessonIndex)} />
+                <CourseDetail course={selectedCourse} grade={currentGrade} aiLoading={aiLoadingId !== null} onBack={() => setSelectedCourse(null)} onStart={(lessonIndex) => openCourse(selectedCourse, lessonIndex)} onSmartStart={() => { const question = getCourseQuestions(selectedCourse.name, selectedGrade)[0]; if (question) void generateSmartQuestion(question, `DeepSeek已生成一道${selectedCourse.name}新题`); }} />
               ) : (
                 <>
                   <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
@@ -260,7 +268,7 @@ export function V4Dashboard() {
           {!["首页", "今日学习", "课程中心", "复习花园", "家长中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
-          {activeQuestion && <LessonModal question={activeQuestion} notice={practiceNotice} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); setPracticeNotice(null); }} />}
+          {activeQuestion && <LessonModal question={activeQuestion} notice={practiceNotice} selectedAnswer={selectedAnswer} answerState={answerState} aiLoading={aiLoadingId !== null} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onSmartNext={continueWithSmartPractice} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); setPracticeNotice(null); }} />}
         </div>
       </main>
 
@@ -275,7 +283,7 @@ function GradeRoute({ currentGrade, selectedGrade, onSelect }: { currentGrade: G
   return <section className="grade-section"><div className="section-heading"><div><span className="section-kicker">为孩子选择合适的起点</span><h2>八级成长路线</h2></div><div className="current-pill">当前：{currentGrade.icon} {currentGrade.id} · {currentGrade.school}</div></div><div className="grade-grid">{grades.map((grade) => <button className={`grade-card ${grade.color} ${selectedGrade === grade.id ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} type="button"><span className="grade-icon">{grade.icon}</span><strong>{grade.id}</strong><b>{grade.school}</b><small>{grade.age}</small><p>{grade.focus}</p>{selectedGrade === grade.id && <i>已选择</i>}</button>)}</div></section>;
 }
 
-function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grade: Grade; onBack: () => void; onStart: (lessonIndex: number) => void }) {
+function CourseDetail({ course, grade, aiLoading, onBack, onStart, onSmartStart }: { course: Course; grade: Grade; aiLoading: boolean; onBack: () => void; onStart: (lessonIndex: number) => void; onSmartStart: () => void }) {
   const lessonNames: Record<string, string[]> = {
     "语言表达": ["看图说一句完整的话", "按顺序讲清楚", "听故事回答问题", "介绍我喜欢的东西"],
     "数量与空间": ["点一点：5以内数量", "认识圆形和方形", "上下左右在哪里", "发现重复的规律"],
@@ -306,8 +314,8 @@ function CourseDetail({ course, grade, onBack, onStart }: { course: Course; grad
 
   return <div className="course-detail">
     <button className="course-back" onClick={onBack} type="button">← 返回课程中心</button>
-    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 共{course.units}课</p></div><button onClick={() => onStart(0)} type="button">开始第1课 →</button></header>
-    <div className="course-detail-summary"><div><strong>{course.progress}%</strong><span>当前进度</span></div><div><strong>约8分钟</strong><span>每课时长</span></div><div><strong>本地核心题库</strong><span>内容来源</span></div></div>
+    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 共{course.units}课</p></div><div className="course-hero-actions"><button onClick={() => onStart(0)} type="button">开始第1课 →</button><button className="ai-course-button" onClick={onSmartStart} disabled={aiLoading} type="button">{aiLoading ? "正在出题…" : "✨ AI智能出题"}</button></div></header>
+    <div className="course-detail-summary"><div><strong>{course.progress}%</strong><span>当前进度</span></div><div><strong>约8分钟</strong><span>每课时长</span></div><div><strong>核心题库 + DeepSeek</strong><span>内容来源</span></div></div>
     <section className="unit-panel"><div className="section-heading compact"><div><span className="section-kicker">循序渐进，不用一次学完</span><h2>第一单元</h2></div><span className="task-count">{availableLessons} / {lessons.length} 开放</span></div><div className="unit-list">{lessons.map((lesson, index) => { const available = index < availableLessons; return <article className={available ? "unit-row current" : "unit-row locked"} key={lesson}><span>{available ? "🌟" : "🌱"}</span><div><small>第 {index + 1} 课</small><strong>{lesson}</strong><p>{available ? "互动练习 + AI小词典 + 句型解析" : "完成本单元题库后按顺序开放"}</p></div>{available ? <button onClick={() => onStart(index)} type="button">进入第{index + 1}课</button> : <em>即将开放</em>}</article>; })}</div></section>
     <aside className="bank-note"><span>🧠</span><div><strong>这节课已经使用统一题库格式</strong><p>题目包含等级、学科、知识点、难度、答案和解析，以后可以直接接入智能出题与错题复习。</p></div></aside>
   </div>;
@@ -325,8 +333,8 @@ function PlanModal({ onClose }: { onClose: () => void }) {
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section className="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-title" onMouseDown={(event) => event.stopPropagation()}><button className="close" aria-label="关闭" onClick={onClose} type="button">×</button><span className="section-kicker">没有限时试用，购买后永久使用</span><h2 id="plan-title">选择适合你家的成长方案</h2><div className="plan-grid">{products.map((product) => <article className={product.accent ? "plan-card featured" : "plan-card"} key={product.name}>{product.accent && <span className="recommended">最受欢迎</span>}<h3>{product.name}</h3><strong><small>¥</small>{product.price}</strong><p>{product.note}</p><button type="button">选择此方案</button></article>)}</div><p className="upgrade-note">以后每增加一个等级仅需 ¥19.9，已支付金额可抵扣全级版。</p></section></div>;
 }
 
-function LessonModal({ question, notice, selectedAnswer, answerState, onSelect, onCheck, onFinish, onClose }: { question: QuestionItem; notice: string | null; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void; onCheck: () => void; onFinish: () => void; onClose: () => void }) {
-  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "AI变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<h2>{question.prompt}</h2><QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div><button className="lesson-submit" disabled={!selectedAnswer} onClick={answerState ? onFinish : onCheck} type="button">{answerState ? "完成学习，收下本题词汇" : "提交答案"}</button></section></div>;
+function LessonModal({ question, notice, selectedAnswer, answerState, aiLoading, onSelect, onCheck, onSmartNext, onFinish, onClose }: { question: QuestionItem; notice: string | null; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; aiLoading: boolean; onSelect: (answer: string) => void; onCheck: () => void; onSmartNext: () => void; onFinish: () => void; onClose: () => void }) {
+  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "AI变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<h2>{question.prompt}</h2><QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "DeepSeek出题中…" : "✨ 再来一道AI题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">提交答案</button>}</section></div>;
 }
 
 function MathModel({ question }: { question: QuestionItem }) {
