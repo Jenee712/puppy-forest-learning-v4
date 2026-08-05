@@ -220,7 +220,7 @@ export function V4Dashboard() {
         <header className="topbar">
           <div className="mobile-brand"><span>🐶</span>森林学堂</div>
           <div className="progress-wrap"><span>今日 {completedTasks.length * 7 + 5} / 30 分钟</span><div className="progress"><i style={{ width: `${Math.min(100, 18 + completedTasks.length * 27)}%` }} /></div></div>
-          <div className="top-actions"><button className="coin" type="button">🪙 {42 + completedTasks.length * 5}</button><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
+          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "DeepSeek已按当前等级生成一道新题")} disabled={aiLoadingId !== null} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><button className="coin" type="button">🪙 {42 + completedTasks.length * 5}</button><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
         </header>
 
         <div className="content">
