@@ -1,5 +1,16 @@
 import { getCourseQuestion } from "@/data/questionBank";
-import { generateWithDeepSeek, parseGenerateQuestionInput } from "@/lib/ai/questionGenerator";
+import { DeepSeekGenerationError, generateWithDeepSeek, parseGenerateQuestionInput, type DeepSeekFailureCode } from "@/lib/ai/questionGenerator";
+
+const failureReasons: Record<DeepSeekFailureCode, string> = {
+  auth: "智能出题服务认证失败，已使用本地核心题",
+  balance: "DeepSeek余额不足，已使用本地核心题",
+  rate_limit: "智能出题请求较多，请稍后再试；本次已使用本地核心题",
+  timeout: "智能出题等待超时，已使用本地核心题",
+  provider: "智能出题服务暂时不可用，已使用本地核心题",
+  empty: "智能题返回内容为空，已自动重试并使用本地核心题",
+  invalid_json: "智能题格式不完整，已自动重试并使用本地核心题",
+  validation: "智能题未通过答案与格式审核，已使用本地核心题",
+};
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get("content-length") ?? 0);
@@ -16,6 +27,9 @@ export async function POST(request: Request) {
   try {
     const question = await generateWithDeepSeek(input, apiKey);
     if (question) return Response.json({ question, engine: "deepseek-v4-flash", fallback: false });
-  } catch { /* 网络、超时或供应商异常时使用保底题 */ }
-  return Response.json({ question: fallbackQuestion, engine: "local_core", fallback: true, reason: "智能题未通过审核，已使用本地核心题" });
+  } catch (error) {
+    const failureCode = error instanceof DeepSeekGenerationError ? error.code : "provider";
+    return Response.json({ question: fallbackQuestion, engine: "local_core", fallback: true, failureCode, reason: failureReasons[failureCode] });
+  }
+  return Response.json({ question: fallbackQuestion, engine: "local_core", fallback: true, failureCode: "validation", reason: failureReasons.validation });
 }

@@ -10,6 +10,18 @@ export type GenerateQuestionInput = {
 
 type DeepSeekResponse = { choices?: Array<{ message?: { content?: string | null } }> };
 
+export type DeepSeekFailureCode = "auth" | "balance" | "rate_limit" | "timeout" | "provider" | "empty" | "invalid_json" | "validation";
+
+export class DeepSeekGenerationError extends Error {
+  readonly code: DeepSeekFailureCode;
+
+  constructor(code: DeepSeekFailureCode) {
+    super(code);
+    this.name = "DeepSeekGenerationError";
+    this.code = code;
+  }
+}
+
 const gradeProfiles: Record<string, string> = {
   G1: "3至4岁幼儿，口语化、短句、依靠生活经验和图像提示",
   G2: "5至6岁幼小衔接，规则意识、数量关系和基础表达",
@@ -76,20 +88,37 @@ function buildPrompts(input: GenerateQuestionInput) {
 
 export async function generateWithDeepSeek(input: GenerateQuestionInput, apiKey: string): Promise<QuestionItem | null> {
   const prompts = buildPrompts(input);
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const response = await fetch("https://api.deepseek.com/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.35, max_tokens: 1300, stream: false }),
-      signal: AbortSignal.timeout(20_000),
-    });
-    if (!response.ok) continue;
+  let lastFailure: DeepSeekFailureCode = "provider";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.35, max_tokens: input.subject.includes("英语") ? 1800 : 1300, stream: false }),
+        signal: AbortSignal.timeout(25_000),
+      });
+    } catch (error) {
+      lastFailure = error instanceof DOMException && error.name === "TimeoutError" ? "timeout" : "provider";
+      continue;
+    }
+    if (!response.ok) {
+      lastFailure = response.status === 401 || response.status === 403 ? "auth" : response.status === 402 ? "balance" : response.status === 429 ? "rate_limit" : "provider";
+      if (lastFailure === "auth" || lastFailure === "balance") break;
+      continue;
+    }
     const content = ((await response.json()) as DeepSeekResponse).choices?.[0]?.message?.content;
-    if (!content) continue;
+    if (!content?.trim()) {
+      lastFailure = "empty";
+      continue;
+    }
     try {
       const question = validateGeneratedQuestion(JSON.parse(content), input);
       if (question) return question;
-    } catch { /* 无效JSON会自动进行下一次尝试 */ }
+      lastFailure = "validation";
+    } catch {
+      lastFailure = "invalid_json";
+    }
   }
-  return null;
+  throw new DeepSeekGenerationError(lastFailure);
 }
