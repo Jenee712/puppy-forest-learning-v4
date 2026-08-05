@@ -45,11 +45,31 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
   const answer = String(item.answer).trim();
   if (options.filter((option) => option === answer).length !== 1) return null;
   if (String(item.explanation).trim().length < 10) return null;
-  return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual: String(item.visual).trim(), options, answer, explanation: String(item.explanation).trim() };
+  const isEnglish = input.subject.includes("英语");
+  let vocabulary: QuestionItem["vocabulary"];
+  let grammarTip: QuestionItem["grammarTip"];
+  if (isEnglish) {
+    if (!Array.isArray(item.vocabulary) || item.vocabulary.length < 1 || item.vocabulary.length > 3) return null;
+    vocabulary = item.vocabulary.map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const word = entry as Record<string, unknown>;
+      const required = ["term", "tag", "meaning", "expansion", "example", "exampleMeaning"] as const;
+      if (required.some((key) => typeof word[key] !== "string" || String(word[key]).trim().length < 2)) return null;
+      if (word.phonetic !== undefined && typeof word.phonetic !== "string") return null;
+      return { term: String(word.term).trim(), phonetic: typeof word.phonetic === "string" ? word.phonetic.trim() : undefined, tag: String(word.tag).trim(), meaning: String(word.meaning).trim(), expansion: String(word.expansion).trim(), example: String(word.example).trim(), exampleMeaning: String(word.exampleMeaning).trim() };
+    }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    if (vocabulary.length !== item.vocabulary.length) return null;
+    if (!item.grammarTip || typeof item.grammarTip !== "object") return null;
+    const tip = item.grammarTip as Record<string, unknown>;
+    if (["title", "pattern", "explanation"].some((key) => typeof tip[key] !== "string" || String(tip[key]).trim().length < 2)) return null;
+    grammarTip = { title: String(tip.title).trim(), pattern: String(tip.pattern).trim(), explanation: String(tip.explanation).trim() };
+  }
+  return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual: String(item.visual).trim(), options, answer, explanation: String(item.explanation).trim(), vocabulary, grammarTip };
 }
 
 function buildPrompts(input: GenerateQuestionInput) {
-  const system = `你是中国儿童分级学习平台的审题老师。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。JSON格式示例：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。要求：答案唯一；三个选项互不重复；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析不能只重复答案。`;
+  const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}；以及"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
+  const system = `你是中国儿童分级学习平台的审题老师。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：答案唯一；三个选项互不重复；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析不能只重复答案。`;
   const avoided = input.avoidTitles?.length ? `不要生成与这些题目相似的内容：${input.avoidTitles.join("、")}。` : "";
   return { system, user: `请生成1道${input.subject}题。等级：${input.grade}（${gradeProfiles[input.grade]}）；知识点：${input.knowledgePoint}；难度：${input.difficulty}/3。${avoided}` };
 }
@@ -60,7 +80,7 @@ export async function generateWithDeepSeek(input: GenerateQuestionInput, apiKey:
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.35, max_tokens: 900, stream: false }),
+      body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.35, max_tokens: 1300, stream: false }),
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) continue;

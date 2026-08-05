@@ -83,6 +83,8 @@ export function V4Dashboard() {
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
   const [wrongRecords, setWrongRecords] = useState<WrongRecord[]>([]);
   const [recordsReady, setRecordsReady] = useState(false);
+  const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
+  const [practiceNotice, setPracticeNotice] = useState<string | null>(null);
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
@@ -110,6 +112,7 @@ export function V4Dashboard() {
     setActiveTaskIndex(index);
     setSelectedAnswer(null);
     setAnswerState(null);
+    setPracticeNotice(null);
   };
 
   const openCourse = (course: Course, lessonIndex = 0) => {
@@ -118,6 +121,7 @@ export function V4Dashboard() {
     setActiveTaskIndex(null);
     setSelectedAnswer(null);
     setAnswerState(null);
+    setPracticeNotice(null);
   };
 
   const checkAnswer = () => {
@@ -142,6 +146,26 @@ export function V4Dashboard() {
     setActiveTaskIndex(null);
     setSelectedAnswer(null);
     setAnswerState(null);
+    setPracticeNotice(null);
+  };
+
+  const openSmartPractice = async (record: WrongRecord) => {
+    setAiLoadingId(record.question.id);
+    try {
+      const response = await fetch("/api/generate-question", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ grade: record.question.grade, subject: record.question.subject, knowledgePoint: record.question.knowledgePoint, difficulty: record.question.difficulty, avoidTitles: [record.question.title] }) });
+      const data = await response.json() as { question?: QuestionItem; fallback?: boolean; reason?: string };
+      if (!response.ok || !data.question) throw new Error("generate_failed");
+      setActiveQuestion(data.question);
+      setPracticeNotice(data.fallback ? (data.reason ?? "已切换到本地核心题") : "已根据这个薄弱知识点生成一道新题");
+    } catch {
+      setActiveQuestion(record.question);
+      setPracticeNotice("网络暂时不稳定，先复习原题");
+    } finally {
+      setActiveTaskIndex(null);
+      setSelectedAnswer(null);
+      setAnswerState(null);
+      setAiLoadingId(null);
+    }
   };
 
   const finishTask = () => {
@@ -150,6 +174,7 @@ export function V4Dashboard() {
     }
     setActiveQuestion(null);
     setActiveTaskIndex(null);
+    setPracticeNotice(null);
   };
 
   const goTo = (label: string) => {
@@ -229,13 +254,13 @@ export function V4Dashboard() {
             </section>
           )}
 
-          {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} onRetry={retryWrongQuestion} onCourse={() => goTo("课程中心")} />}
+          {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} loadingId={aiLoadingId} onRetry={retryWrongQuestion} onSmartPractice={openSmartPractice} onCourse={() => goTo("课程中心")} />}
           {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} onGarden={() => goTo("复习花园")} />}
 
           {!["首页", "今日学习", "课程中心", "复习花园", "家长中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
-          {activeQuestion && <LessonModal question={activeQuestion} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); }} />}
+          {activeQuestion && <LessonModal question={activeQuestion} notice={practiceNotice} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); setPracticeNotice(null); }} />}
         </div>
       </main>
 
@@ -300,8 +325,8 @@ function PlanModal({ onClose }: { onClose: () => void }) {
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section className="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-title" onMouseDown={(event) => event.stopPropagation()}><button className="close" aria-label="关闭" onClick={onClose} type="button">×</button><span className="section-kicker">没有限时试用，购买后永久使用</span><h2 id="plan-title">选择适合你家的成长方案</h2><div className="plan-grid">{products.map((product) => <article className={product.accent ? "plan-card featured" : "plan-card"} key={product.name}>{product.accent && <span className="recommended">最受欢迎</span>}<h3>{product.name}</h3><strong><small>¥</small>{product.price}</strong><p>{product.note}</p><button type="button">选择此方案</button></article>)}</div><p className="upgrade-note">以后每增加一个等级仅需 ¥19.9，已支付金额可抵扣全级版。</p></section></div>;
 }
 
-function LessonModal({ question, selectedAnswer, answerState, onSelect, onCheck, onFinish, onClose }: { question: QuestionItem; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void; onCheck: () => void; onFinish: () => void; onClose: () => void }) {
-  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>1 / 1</em></div><div className="lesson-progress"><i /></div><div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<h2>{question.prompt}</h2><QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div><button className="lesson-submit" disabled={!selectedAnswer} onClick={answerState ? onFinish : onCheck} type="button">{answerState ? "完成学习，收下本题词汇" : "提交答案"}</button></section></div>;
+function LessonModal({ question, notice, selectedAnswer, answerState, onSelect, onCheck, onFinish, onClose }: { question: QuestionItem; notice: string | null; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; onSelect: (answer: string) => void; onCheck: () => void; onFinish: () => void; onClose: () => void }) {
+  return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "AI变式题" : "1 / 1"}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className="question-card">{question.mathModel ? <MathModel question={question} /> : <span className="question-visual">{question.visual}</span>}<h2>{question.prompt}</h2><QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />{answerState && <div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><strong>{answerState === "correct" ? "答对了，真棒！" : "没关系，我们一起看看"}</strong><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div><button className="lesson-submit" disabled={!selectedAnswer} onClick={answerState ? onFinish : onCheck} type="button">{answerState ? "完成学习，收下本题词汇" : "提交答案"}</button></section></div>;
 }
 
 function MathModel({ question }: { question: QuestionItem }) {
@@ -364,7 +389,7 @@ function ParentCenter({ records, grade, completedTasks, onGarden }: { records: W
   </section>;
 }
 
-function ReviewGarden({ records, onRetry, onCourse }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void }) {
+function ReviewGarden({ records, loadingId, onRetry, onSmartPractice, onCourse }: { records: WrongRecord[]; loadingId: string | null; onRetry: (record: WrongRecord) => void; onSmartPractice: (record: WrongRecord) => void; onCourse: () => void }) {
   const now = SESSION_NOW;
   const due = records.filter((record) => !record.mastered || (record.nextReviewAt ? new Date(record.nextReviewAt).getTime() <= now : false));
   const upcoming = records.filter((record) => record.mastered && record.nextReviewAt && new Date(record.nextReviewAt).getTime() > now);
@@ -374,7 +399,7 @@ function ReviewGarden({ records, onRetry, onCourse }: { records: WrongRecord[]; 
     const days = Math.max(1, Math.ceil((new Date(date).getTime() - now) / 86400000));
     return `${days}天后`;
   };
-  return <section className="page-surface review-garden-page"><PageTitle eyebrow="系统替家长记住什么时候复习" title="复习花园" subtitle="答错当天订正，答对后在1天、3天、7天再次巩固" icon="🌷" /><div className="garden-summary"><div><span>🌱</span><strong>{due.length}</strong><small>今天待复习</small></div><div><span>🌿</span><strong>{upcoming.length}</strong><small>后续已安排</small></div><div><span>🌳</span><strong>{completed.length}</strong><small>完成复习周期</small></div></div><div className="review-timeline"><div className="active"><span>今天</span><strong>发现错误并订正</strong></div><i>→</i><div><span>1天后</span><strong>第一次巩固</strong></div><i>→</i><div><span>3天后</span><strong>第二次巩固</strong></div><i>→</i><div><span>7天后</span><strong>长期记忆检查</strong></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌼</span><h2>花园还没有复习任务</h2><p>孩子答错题目后，系统会自动在这里种下一株“复习小苗”。</p><button onClick={onCourse} type="button">去完成一节课程</button></div> : <><section className="garden-section"><div className="garden-heading"><div><span>☀️</span><div><small>今日任务</small><h2>现在可以复习</h2></div></div><em>{due.length}题</em></div>{due.length === 0 ? <p className="garden-clear">今天的复习已经完成，可以休息一下啦。</p> : <div className="garden-cards">{due.map((record) => <article key={record.question.id}><span>📝</span><div><small>{record.question.grade} · {record.question.subject}</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div><button onClick={() => onRetry(record)} type="button">开始复习</button></article>)}</div>}</section><section className="garden-section"><div className="garden-heading"><div><span>🗓️</span><div><small>自动安排</small><h2>接下来的复习</h2></div></div><em>{upcoming.length}题</em></div>{upcoming.length === 0 ? <p className="garden-clear">暂无等待中的任务。</p> : <div className="garden-cards upcoming">{upcoming.map((record) => <article key={record.question.id}><span>🌿</span><div><small>{relativeDay(record.nextReviewAt)} · 第{(record.reviewStage ?? 0) + 1}次巩固</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div><em>等待开放</em></article>)}</div>}</section></>}
+  return <section className="page-surface review-garden-page"><PageTitle eyebrow="系统替家长记住什么时候复习" title="复习花园" subtitle="答错当天订正，答对后在1天、3天、7天再次巩固" icon="🌷" /><div className="garden-summary"><div><span>🌱</span><strong>{due.length}</strong><small>今天待复习</small></div><div><span>🌿</span><strong>{upcoming.length}</strong><small>后续已安排</small></div><div><span>🌳</span><strong>{completed.length}</strong><small>完成复习周期</small></div></div><div className="review-timeline"><div className="active"><span>今天</span><strong>发现错误并订正</strong></div><i>→</i><div><span>1天后</span><strong>第一次巩固</strong></div><i>→</i><div><span>3天后</span><strong>第二次巩固</strong></div><i>→</i><div><span>7天后</span><strong>长期记忆检查</strong></div></div>{records.length === 0 ? <div className="wrong-empty"><span>🌼</span><h2>花园还没有复习任务</h2><p>孩子答错题目后，系统会自动在这里种下一株“复习小苗”。</p><button onClick={onCourse} type="button">去完成一节课程</button></div> : <><section className="garden-section"><div className="garden-heading"><div><span>☀️</span><div><small>今日任务</small><h2>现在可以复习</h2></div></div><em>{due.length}题</em></div>{due.length === 0 ? <p className="garden-clear">今天的复习已经完成，可以休息一下啦。</p> : <div className="garden-cards">{due.map((record) => <article key={record.question.id}><span>📝</span><div><small>{record.question.grade} · {record.question.subject}</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div><div className="garden-actions"><button onClick={() => onRetry(record)} type="button">复习原题</button><button className="smart-practice" onClick={() => onSmartPractice(record)} disabled={loadingId !== null} type="button">{loadingId === record.question.id ? "正在出题…" : "✨ 智能加练"}</button></div></article>)}</div>}</section><section className="garden-section"><div className="garden-heading"><div><span>🗓️</span><div><small>自动安排</small><h2>接下来的复习</h2></div></div><em>{upcoming.length}题</em></div>{upcoming.length === 0 ? <p className="garden-clear">暂无等待中的任务。</p> : <div className="garden-cards upcoming">{upcoming.map((record) => <article key={record.question.id}><span>🌿</span><div><small>{relativeDay(record.nextReviewAt)} · 第{(record.reviewStage ?? 0) + 1}次巩固</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div><em>等待开放</em></article>)}</div>}</section></>}
   </section>;
 }
 
