@@ -56,6 +56,8 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
   if (new Set(options.map((option) => option.toLocaleLowerCase())).size !== options.length) return null;
   const answer = String(item.answer).trim();
   if (options.filter((option) => option === answer).length !== 1) return null;
+  const visual = String(item.visual).trim();
+  if (visualRevealsAnswer(visual, answer)) return null;
   if (String(item.explanation).trim().length < 10) return null;
   const isEnglish = input.subject.includes("英语");
   let vocabulary: QuestionItem["vocabulary"];
@@ -76,12 +78,31 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
     if (["title", "pattern", "explanation"].some((key) => typeof tip[key] !== "string" || String(tip[key]).trim().length < 2)) return null;
     grammarTip = { title: String(tip.title).trim(), pattern: String(tip.pattern).trim(), explanation: String(tip.explanation).trim() };
   }
-  return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual: String(item.visual).trim(), options, answer, explanation: String(item.explanation).trim(), vocabulary, grammarTip };
+  return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual, options, answer, explanation: String(item.explanation).trim(), vocabulary, grammarTip };
+}
+
+function visualRevealsAnswer(visual: string, answer: string) {
+  const normalize = (text: string) => text.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const normalizedVisual = normalize(visual);
+  const normalizedAnswer = normalize(answer);
+  if (!normalizedVisual || !normalizedAnswer) return false;
+  const containsChinese = /[\u3400-\u9FFF]/.test(answer);
+  if (!containsChinese) return normalizedAnswer.length >= 4 && normalizedVisual.includes(normalizedAnswer);
+  if (normalizedAnswer.length < 2) return false;
+  if (normalizedVisual.includes(normalizedAnswer)) return true;
+  if (normalizedAnswer.length < 4) return false;
+
+  let answerIndex = 0;
+  for (const character of normalizedVisual) {
+    if (character === normalizedAnswer[answerIndex]) answerIndex += 1;
+    if (answerIndex === normalizedAnswer.length) return true;
+  }
+  return false;
 }
 
 function buildPrompts(input: GenerateQuestionInput) {
   const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}；以及"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
-  const system = `你是中国儿童分级学习平台的审题老师。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：答案唯一；三个选项互不重复；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析不能只重复答案。`;
+  const system = `你是中国儿童分级学习平台的审题老师。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析不能只重复答案。`;
   const avoided = input.avoidTitles?.length ? `不要生成与这些题目相似的内容：${input.avoidTitles.join("、")}。` : "";
   return { system, user: `请生成1道${input.subject}题。等级：${input.grade}（${gradeProfiles[input.grade]}）；知识点：${input.knowledgePoint}；难度：${input.difficulty}/3。${avoided}` };
 }
