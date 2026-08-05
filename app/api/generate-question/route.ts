@@ -3,7 +3,7 @@ import { DeepSeekGenerationError, generateWithDeepSeek, parseGenerateQuestionInp
 
 const failureReasons: Record<DeepSeekFailureCode, string> = {
   auth: "智能出题服务认证失败，已使用本地核心题",
-  balance: "DeepSeek余额不足，已使用本地核心题",
+  balance: "智能出题额度不足，已使用本地核心题",
   rate_limit: "智能出题请求较多，请稍后再试；本次已使用本地核心题",
   timeout: "智能出题等待超时，已使用本地核心题",
   provider: "智能出题服务暂时不可用，已使用本地核心题",
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
   try {
     const question = await generateWithDeepSeek(input, apiKey);
-    if (question) return Response.json({ question, engine: "deepseek-v4-flash", fallback: false });
+    if (question) return Response.json({ question, engine: "ai_model", fallback: false });
   } catch (error) {
     const failureCode = error instanceof DeepSeekGenerationError ? error.code : "provider";
     return Response.json({ question: fallbackQuestion, engine: "local_core", fallback: true, failureCode, reason: failureReasons[failureCode] });

@@ -26,5 +26,6 @@ test("server-renders the V4 learning platform", async () => {
   assert.match(html, /G8/);
   assert.match(html, /绘本馆/);
   assert.match(html, /查看永久解锁方案/);
+  assert.doesNotMatch(html, /DeepSeek/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
