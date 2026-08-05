@@ -27,6 +27,12 @@ export type QuestionItem = {
     pattern: string;
     explanation: string;
   };
+  mathModel?: {
+    kind: "steps" | "circle";
+    title: string;
+    values: Array<{ label: string; value: string }>;
+    relation: string;
+  };
 };
 
 const dailyQuestions: QuestionItem[] = [
@@ -64,7 +70,7 @@ const gradeSpecificQuestions: Record<string, Omit<QuestionItem, "id" | "grade" |
   "G5:数学": { subject: "数学", knowledgePoint: "两步应用题", type: "single_choice", difficulty: 2, source: "local_core", title: "两步解决问题", prompt: "图书角原有36本故事书，又放入18本，平均摆在6层。每层放几本？", visual: "📚（36＋18）÷6", options: ["8本", "9本", "12本"], answer: "9本", explanation: "先求总数：36＋18＝54，再平均分：54÷6＝9。" },
   "G6:数学": { subject: "数学", knowledgePoint: "小数乘法应用", type: "single_choice", difficulty: 2, source: "local_core", title: "小数生活题", prompt: "一盒彩笔12.5元，买4盒需要多少钱？", visual: "12.5 × 4", options: ["40元", "50元", "52元"], answer: "50元", explanation: "12.5×4＝50，注意小数点的位置。" },
   "G7:数学": { subject: "数学", knowledgePoint: "分数应用", type: "single_choice", difficulty: 2, source: "local_core", title: "分数与实际数量", prompt: "合唱队有40人，其中3/5是女生。女生有多少人？", visual: "40 × 3/5", options: ["16人", "24人", "30人"], answer: "24人", explanation: "求40的3/5：40÷5×3＝24。" },
-  "G8:数学": { subject: "数学", knowledgePoint: "百分数综合应用", type: "single_choice", difficulty: 3, source: "local_core", title: "折扣中的数学", prompt: "一本书原价80元，先打九折，再使用5元优惠券，实际支付多少元？", visual: "原价80元 → 九折 → 再减5元", options: ["67元", "68元", "72元"], answer: "67元", explanation: "九折后是80×90%＝72元，再减5元，实际支付67元。" },
+  "G8:数学": { subject: "数学", knowledgePoint: "百分数综合应用", type: "single_choice", difficulty: 3, source: "local_core", title: "折扣中的数学", prompt: "一本书原价80元，先打九折，再使用5元优惠券，实际支付多少元？", visual: "原价80元 → 九折 → 再减5元", options: ["67元", "68元", "72元"], answer: "67元", explanation: "九折后是80×90%＝72元，再减5元，实际支付67元。", mathModel: { kind: "steps", title: "把条件按发生顺序整理", values: [{ label: "原价", value: "80元" }, { label: "九折", value: "× 90%" }, { label: "优惠券", value: "− 5元" }], relation: "80 × 90% − 5" } },
 
   "G5:英语": { subject: "英语", knowledgePoint: "一般现在时", type: "single_choice", difficulty: 2, source: "local_core", title: "Daily routines", prompt: "Choose the correct sentence.", visual: "Tom 🚌 every day", options: ["Tom go to school by bus every day.", "Tom goes to school by bus every day.", "Tom going to school by bus every day."], answer: "Tom goes to school by bus every day.", explanation: "Tom 是第三人称单数，一般现在时中 go 要变成 goes。", vocabulary: [
     { term: "go to school", phonetic: "/ɡəʊ tə skuːl/", tag: "词组", meaning: "去上学", expansion: "go to + 地点，表示去往某地。", example: "I go to school at 7:30.", exampleMeaning: "我七点半去上学。" },
@@ -125,6 +131,14 @@ const englishExtensions: Record<string, Array<Omit<QuestionItem, "id" | "grade" 
   ],
 };
 
+const mathExtensions: Record<string, Array<Omit<QuestionItem, "id" | "grade" | "eyebrow">>> = {
+  G8: [
+    { subject: "数学", knowledgePoint: "比与比例", type: "single_choice", difficulty: 3, source: "local_core", title: "配制果汁", prompt: "橙汁和水按2∶3配制。用了400毫升橙汁，需要加入多少毫升水？", visual: "🍊 2份 ︰ 💧 3份", options: ["500毫升", "600毫升", "800毫升"], answer: "600毫升", explanation: "400毫升对应2份，每份是200毫升；水有3份，所以需要200×3＝600毫升。", mathModel: { kind: "steps", title: "先求每份，再求3份水", values: [{ label: "橙汁", value: "2份＝400毫升" }, { label: "每份", value: "400÷2＝200" }, { label: "水", value: "200×3" }], relation: "400 ÷ 2 × 3" } },
+    { subject: "数学", knowledgePoint: "圆的周长", type: "single_choice", difficulty: 3, source: "local_core", title: "圆形花坛", prompt: "一个圆形花坛的半径是5米，沿花坛边缘走一圈约是多少米？（π取3.14）", visual: "圆形花坛 · 半径5米", options: ["15.7米", "31.4米", "78.5米"], answer: "31.4米", explanation: "圆的周长＝2×π×半径，所以2×3.14×5＝31.4米。", mathModel: { kind: "circle", title: "看清半径，再选择周长公式", values: [{ label: "半径 r", value: "5米" }, { label: "圆周率 π", value: "3.14" }], relation: "C＝2πr" } },
+    { subject: "数学", knowledgePoint: "用方程解决问题", type: "fill_blank", difficulty: 3, source: "local_core", title: "列方程找未知数", prompt: "3个相同的文具盒共75元。设每个文具盒x元，方程3x＝75，x＝____。", visual: "✏️盒 × 3＝75元", options: [], answer: "25", explanation: "方程两边同时除以3，x＝75÷3＝25。", mathModel: { kind: "steps", title: "把总价平均分成3份", values: [{ label: "数量", value: "3个" }, { label: "总价", value: "75元" }, { label: "单价", value: "x元" }], relation: "3x＝75" } },
+  ],
+};
+
 export function getDailyQuestion(index: number, grade = "G3") {
   if (!/^G[1-8]$/.test(grade)) return dailyQuestions[index] ?? dailyQuestions[0];
   const preschool = grade === "G1" || grade === "G2";
@@ -147,6 +161,10 @@ export function getCourseQuestion(courseName: string, grade: string): QuestionIt
 
 export function getCourseQuestions(courseName: string, grade: string): QuestionItem[] {
   const first = getCourseQuestion(courseName, grade);
+  if (courseName === "数学") {
+    const extensions = mathExtensions[grade] ?? [];
+    return [first, ...extensions.map((question, index) => ({ ...question, id: `${grade.toLowerCase()}-math-${index + 2}`, grade, eyebrow: `${grade} · 数学` }))];
+  }
   if (!courseName.includes("英语")) return [first];
   const extensions = englishExtensions[grade] ?? [];
   return [first, ...extensions.map((question, index) => ({ ...question, id: `${grade.toLowerCase()}-english-${index + 2}`, grade, eyebrow: `${grade} · ${courseName}` }))];
