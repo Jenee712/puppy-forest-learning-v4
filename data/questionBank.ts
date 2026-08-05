@@ -5,7 +5,7 @@ export type QuestionItem = {
   knowledgePoint: string;
   type: "single_choice" | "fill_blank" | "ordering" | "true_false" | "matching";
   difficulty: 1 | 2 | 3;
-  source: "local_core";
+  source: "local_core" | "ai_generated";
   title: string;
   eyebrow: string;
   prompt: string;
