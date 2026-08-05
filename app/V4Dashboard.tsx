@@ -296,7 +296,31 @@ function DictionaryExpansion({ question }: { question: QuestionItem }) {
 function ParentCenter({ records, grade, completedTasks, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; onGarden: () => void }) {
   const pending = records.filter((record) => !record.mastered).length;
   const mastered = records.filter((record) => record.mastered).length;
-  return <section className="page-surface parent-center-page"><PageTitle eyebrow="家长只看结果，不需要手动整理题目" title="家长中心" subtitle={`${grade.id} · ${grade.school} · 小鹿 Leo 的学习概览`} icon="🛡️" /><div className="parent-hero"><div><span>🦌</span><div><small>孩子档案</small><strong>小鹿 Leo</strong><p>{grade.age} · 当前学习等级 {grade.id}</p></div></div><button onClick={onGarden} type="button">查看孩子今天的复习 →</button></div><div className="parent-metrics"><div><strong>{completedTasks}<small>/3</small></strong><span>今日任务</span></div><div><strong>{records.length}</strong><span>累计错题</span></div><div><strong>{pending}</strong><span>需要关注</span></div><div><strong>{mastered}</strong><span>已完成订正</span></div></div><div className="parent-insight"><span>💡</span><div><strong>本周学习建议</strong><p>{pending > 0 ? `孩子目前有${pending}个知识点需要复习，系统已经放入复习花园。家长无需另外出题。` : "目前没有待订正题目，保持每天20～30分钟的轻量学习即可。"}</p></div></div><section className="archive-panel"><div className="section-heading compact"><div><span className="section-kicker">仅供家长查看，不在这里做题</span><h2>错题档案</h2></div><span className="task-count">{records.length} 条记录</span></div>{records.length === 0 ? <p className="archive-empty">孩子答错后，题目、错误答案、知识点和订正状态会自动归档到这里。</p> : <div className="archive-list">{records.map((record) => <article className="archive-card" key={record.question.id}><div><span>{record.mastered ? "✅" : "⚠️"}</span><div><small>{record.question.grade} · {record.question.subject}</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div></div><dl><div><dt>错误答案</dt><dd>{record.selectedAnswer}</dd></div><div><dt>正确答案</dt><dd>{record.question.answer}</dd></div><div><dt>错误次数</dt><dd>{record.attempts}次</dd></div><div><dt>当前状态</dt><dd>{record.mastered ? "已订正，等待巩固" : "待复习"}</dd></div></dl></article>)}</div>}<p className="device-note">🔒 试用版档案保存在当前设备；正式账号版将支持家庭多设备同步。</p></section></section>;
+  const subjectStats = Object.entries(records.reduce<Record<string, number>>((stats, record) => {
+    stats[record.question.subject] = (stats[record.question.subject] ?? 0) + record.attempts;
+    return stats;
+  }, {})).sort((a, b) => b[1] - a[1]);
+  const knowledgeStats = Object.entries(records.reduce<Record<string, number>>((stats, record) => {
+    stats[record.question.knowledgePoint] = (stats[record.question.knowledgePoint] ?? 0) + record.attempts;
+    return stats;
+  }, {})).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const maxSubjectCount = Math.max(1, ...subjectStats.map(([, count]) => count));
+  const focusSubject = subjectStats[0]?.[0];
+
+  return <section className="page-surface parent-center-page">
+    <PageTitle eyebrow="家长只看结果，不需要手动整理题目" title="家长中心" subtitle={`${grade.id} · ${grade.school} · 小鹿 Leo 的学习概览`} icon="🛡️" />
+    <div className="parent-hero"><div><span>🦌</span><div><small>孩子档案</small><strong>小鹿 Leo</strong><p>{grade.age} · 当前学习等级 {grade.id}</p></div></div><button onClick={onGarden} type="button">查看孩子今天的复习 →</button></div>
+    <div className="parent-metrics"><div><strong>{completedTasks}<small>/3</small></strong><span>今日任务</span></div><div><strong>{records.length}</strong><span>累计错题</span></div><div><strong>{pending}</strong><span>需要关注</span></div><div><strong>{mastered}</strong><span>已完成订正</span></div></div>
+    <div className="parent-insight"><span>💡</span><div><strong>本周学习建议</strong><p>{pending > 0 ? `孩子目前有${pending}个知识点需要复习${focusSubject ? `，优先关注${focusSubject}` : ""}。系统已经放入复习花园，家长无需另外出题。` : "目前没有待订正题目，保持每天20～30分钟的轻量学习即可。"}</p></div></div>
+    <section className="learning-report">
+      <div className="section-heading compact"><div><span className="section-kicker">把错题翻译成家长能看懂的结论</span><h2>学习诊断</h2></div><span className="task-count">自动分析</span></div>
+      {records.length === 0 ? <div className="report-empty"><span>🌱</span><div><strong>完成几道练习后，这里会出现学习诊断</strong><p>系统会按学科和知识点归纳薄弱项，不需要家长统计。</p></div></div> : <div className="report-grid">
+        <div className="subject-report"><h3>需要关注的学科</h3>{subjectStats.map(([subject, count], index) => <div className="subject-bar" key={subject}><div><strong>{subject}</strong><span>{index === 0 ? "优先关注" : `${count}次错答`}</span></div><i><b style={{ width: `${Math.max(18, Math.round(count / maxSubjectCount * 100))}%` }} /></i></div>)}</div>
+        <div className="knowledge-report"><h3>薄弱知识点</h3>{knowledgeStats.map(([point, count], index) => <article key={point}><span>{index + 1}</span><div><strong>{point}</strong><small>累计错答 {count} 次</small></div><em>{index === 0 ? "本周重点" : "持续观察"}</em></article>)}</div>
+      </div>}
+    </section>
+    <section className="archive-panel"><div className="section-heading compact"><div><span className="section-kicker">仅供家长查看，不在这里做题</span><h2>错题档案</h2></div><span className="task-count">{records.length} 条记录</span></div>{records.length === 0 ? <p className="archive-empty">孩子答错后，题目、错误答案、知识点和订正状态会自动归档到这里。</p> : <div className="archive-list">{records.map((record) => <article className="archive-card" key={record.question.id}><div><span>{record.mastered ? "✅" : "⚠️"}</span><div><small>{record.question.grade} · {record.question.subject}</small><strong>{record.question.knowledgePoint}</strong><p>{record.question.title}</p></div></div><dl><div><dt>错误答案</dt><dd>{record.selectedAnswer}</dd></div><div><dt>正确答案</dt><dd>{record.question.answer}</dd></div><div><dt>错误次数</dt><dd>{record.attempts}次</dd></div><div><dt>当前状态</dt><dd>{record.mastered ? "已订正，等待巩固" : "待复习"}</dd></div></dl></article>)}</div>}<p className="device-note">🔒 试用版档案保存在当前设备；正式账号版将支持家庭多设备同步。</p></section>
+  </section>;
 }
 
 function ReviewGarden({ records, onRetry, onCourse }: { records: WrongRecord[]; onRetry: (record: WrongRecord) => void; onCourse: () => void }) {
