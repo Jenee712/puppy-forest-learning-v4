@@ -17,7 +17,7 @@ export type PictureBook = {
   coverColor: string;
   ageRange: string;
   pages: PictureBookPage[];
-  illustrations?: string[];
+  illustrations: string[];
   sourceNote?: string;
 };
 
@@ -34,6 +34,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "rose",
     ageRange: "3–4岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g1-1/page1.png",
+      "/picture-books/pb-g1-1/page2.png",
+      "/picture-books/pb-g1-1/page3.png",
+      "/picture-books/pb-g1-1/page4.png",
+    ],
     pages: [
       { en: "Leo the puppy has a red ball.", cn: "小狗 Leo 有一个红色的小球。", scene: "小狗抱着红球" },
       { en: "The ball rolls under the leaf.", cn: "小球滚到了叶子下面。", scene: "球滚进草丛" },
@@ -50,6 +56,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "mint",
     ageRange: "3–4岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g1-2/page1.png",
+      "/picture-books/pb-g1-2/page2.png",
+      "/picture-books/pb-g1-2/page3.png",
+      "/picture-books/pb-g1-2/page4.png",
+    ],
     pages: [
       { en: "Good morning, little rabbit.", cn: "早上好，小兔子。", scene: "晨光中的兔子" },
       { en: "Good morning, little bird.", cn: "早上好，小鸟。", scene: "枝头的小鸟" },
@@ -68,6 +80,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "leaf",
     ageRange: "5–6岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g2-1/page1.png",
+      "/picture-books/pb-g2-1/page2.png",
+      "/picture-books/pb-g2-1/page3.png",
+      "/picture-books/pb-g2-1/page4.png",
+    ],
     pages: [
       { en: "One acorn for the squirrel.", cn: "给小松鼠一颗橡果。", scene: "松鼠和橡果" },
       { en: "Two acorns by the tree.", cn: "树下有两颗橡果。", scene: "树下的橡果" },
@@ -84,6 +102,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "sun",
     ageRange: "5–6岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g2-2/page1.png",
+      "/picture-books/pb-g2-2/page2.png",
+      "/picture-books/pb-g2-2/page3.png",
+      "/picture-books/pb-g2-2/page4.png",
+    ],
     pages: [
       { en: "May I share your apple?", cn: "我可以分你的苹果吗？", scene: "请求分享" },
       { en: "Yes, please have one.", cn: "可以，请拿一个吧。", scene: "递出苹果" },
@@ -102,6 +126,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "lilac",
     ageRange: "7岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g3-1/p1/Childrens_picture_book_illustr_2026-08-09T05-17-42.png",
+      "/picture-books/pb-g3-1/p2/Childrens_picture_book_illustr_2026-08-09T05-18-11.png",
+      "/picture-books/pb-g3-1/p3/Childrens_picture_book_illustr_2026-08-09T05-18-40.png",
+      "/picture-books/pb-g3-1/p4/Childrens_picture_book_illustr_2026-08-09T05-19-09.png",
+    ],
     pages: [
       { en: "The snow melts in the forest.", cn: "森林里的雪融化了。", scene: "雪化溪流" },
       { en: "Green buds appear on the trees.", cn: "树上冒出了绿色的新芽。", scene: "树芽" },
@@ -118,6 +148,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "blue",
     ageRange: "7岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g3-2/p1/Childrens_picture_book_illustr_2026-08-09T05-19-41.png",
+      "/picture-books/pb-g3-2/p2/Childrens_picture_book_illustr_2026-08-09T05-20-11.png",
+      "/picture-books/pb-g3-2/p3/Childrens_picture_book_illustr_2026-08-09T05-20-42.png",
+      "/picture-books/pb-g3-2/p4/Childrens_picture_book_illustr_2026-08-09T05-21-15.png",
+    ],
     pages: [
       { en: "Dad deer tells a bedtime story.", cn: "鹿爸爸讲了一个睡前故事。", scene: "爸爸讲故事" },
       { en: "Mum deer sings a soft song.", cn: "鹿妈妈唱了一首温柔的歌。", scene: "妈妈唱歌" },
@@ -136,6 +172,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "sky",
     ageRange: "8岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g4-1/p1/Childrens_picture_book_illustr_2026-08-09T05-21-52.png",
+      "/picture-books/pb-g4-1/p2/Childrens_picture_book_illustr_2026-08-09T05-22-30.png",
+      "/picture-books/pb-g4-1/p3/Childrens_picture_book_illustr_2026-08-09T05-23-18.png",
+      "/picture-books/pb-g4-1/p4/Childrens_picture_book_illustr_2026-08-09T05-24-27.png",
+    ],
     pages: [
       { en: "Ollie the owl lives in the old tree.", cn: "猫头鹰 Ollie 住在老树上。", scene: "树上的猫头鹰" },
       { en: "He shares his stories at night.", cn: "夜里他会分享自己的故事。", scene: "夜晚讲故事" },
@@ -152,6 +194,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "peach",
     ageRange: "8岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g4-2/p1/Childrens_picture_book_illustr_2026-08-09T05-25-13.png",
+      "/picture-books/pb-g4-2/p2/Childrens_picture_book_illustr_2026-08-09T05-25-45.png",
+      "/picture-books/pb-g4-2/p3/Childrens_picture_book_illustr_2026-08-09T05-26-17.png",
+      "/picture-books/pb-g4-2/p4/Childrens_picture_book_illustr_2026-08-09T05-26-48.png",
+    ],
     pages: [
       { en: "The rain falls on the leaves.", cn: "雨点落在叶子上。", scene: "雨打树叶" },
       { en: "A small puddle glows like a mirror.", cn: "一个小水洼像镜子一样发亮。", scene: "亮晶晶的水洼" },
@@ -170,6 +218,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "green",
     ageRange: "9岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g5-1/p1/Childrens_picture_book_illustr_2026-08-09T05-27-22.png",
+      "/picture-books/pb-g5-1/p2/Childrens_picture_book_illustr_2026-08-09T05-27-52.png",
+      "/picture-books/pb-g5-1/p3/Childrens_picture_book_illustr_2026-08-09T05-28-22.png",
+      "/picture-books/pb-g5-1/p4/Childrens_picture_book_illustr_2026-08-09T05-28-51.png",
+    ],
     pages: [
       { en: "A tiny seed falls on the soil.", cn: "一粒小种子落在泥土上。", scene: "落下的种子" },
       { en: "Roots drink water from the earth.", cn: "根从泥土里喝到水分。", scene: "根吸水" },
@@ -186,6 +240,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "yellow",
     ageRange: "9岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g5-2/p1/Childrens_picture_book_illustr_2026-08-09T05-29-22.png",
+      "/picture-books/pb-g5-2/p2/Childrens_picture_book_illustr_2026-08-09T05-29-53.png",
+      "/picture-books/pb-g5-2/p3/Childrens_picture_book_illustr_2026-08-09T05-30-23.png",
+      "/picture-books/pb-g5-2/p4/Childrens_picture_book_illustr_2026-08-09T05-30-53.png",
+    ],
     pages: [
       { en: "The picnic left crumbs on the grass.", cn: "野餐后草地上留下了碎屑。", scene: "草地上的碎屑" },
       { en: "Leo picks up every piece.", cn: "Leo 把每一片都捡起来。", scene: "捡垃圾" },
@@ -204,6 +264,12 @@ export const pictureBooks: PictureBook[] = [
     coverColor: "coral",
     ageRange: "10岁",
     sourceNote: SOURCE,
+    illustrations: [
+      "/picture-books/pb-g6-1/p1/Childrens_picture_book_illustr_2026-08-09T05-31-23.png",
+      "/picture-books/pb-g6-1/p2/Childrens_picture_book_illustr_2026-08-09T05-31-55.png",
+      "/picture-books/pb-g6-1/p3/Childrens_picture_book_illustr_2026-08-09T05-32-27.png",
+      "/picture-books/pb-g6-1/p4/Childrens_picture_book_illustr_2026-08-09T05-32-59.png",
+    ],
     pages: [
       { en: "A storm shakes the tall oak.", cn: "一场暴风雨摇晃着高大的橡树。", scene: "暴风中的橡树" },
       { en: "The little rabbit feels afraid.", cn: "小兔子感到害怕。", scene: "害怕的小兔" },
@@ -211,91 +277,6 @@ export const pictureBooks: PictureBook[] = [
       { en: "Together they are not so scared.", cn: "在一起，他们就没那么害怕了。", scene: "彼此依靠" },
     ],
   },
-  {
-    id: "pb-g6-2",
-    grade: "G6",
-    titleEn: "A Gift for Grandma",
-    titleCn: "给奶奶的礼物",
-    coverEmoji: "🎁",
-    coverColor: "pink",
-    ageRange: "10岁",
-    sourceNote: SOURCE,
-    pages: [
-      { en: "Grandma fox feels a little lonely.", cn: "狐狸奶奶觉得有点孤单。", scene: "孤单的奶奶" },
-      { en: "The children paint a bright card.", cn: "孩子们画了一张亮丽的卡片。", scene: "画卡片" },
-      { en: "They bring her warm soup too.", cn: "他们还给她带了热汤。", scene: "送热汤" },
-      { en: "Her smile lights up the room.", cn: "她的笑容照亮了整个房间。", scene: "奶奶的笑容" },
-    ],
-  },
-
-  // ===================== G7（11岁 小学五年级） =====================
-  {
-    id: "pb-g7-1",
-    grade: "G7",
-    titleEn: "The Recycling Team",
-    titleCn: "回收小队",
-    coverEmoji: "♻️",
-    coverColor: "leaf",
-    ageRange: "11岁",
-    sourceNote: SOURCE,
-    pages: [
-      { en: "Empty bottles lie by the river.", cn: "空瓶子躺在河边。", scene: "河边的空瓶" },
-      { en: "The team sorts glass and paper.", cn: "小队把玻璃和纸张分类。", scene: "分类回收" },
-      { en: "They turn waste into new things.", cn: "他们把废品变成新东西。", scene: "变废为宝" },
-      { en: "Small hands can protect the earth.", cn: "小小的手也能保护地球。", scene: "守护地球" },
-    ],
-  },
-  {
-    id: "pb-g7-2",
-    grade: "G7",
-    titleEn: "Building the Tree House",
-    titleCn: "建造树屋",
-    coverEmoji: "🏠",
-    coverColor: "sun",
-    ageRange: "11岁",
-    sourceNote: SOURCE,
-    pages: [
-      { en: "The friends plan a tree house.", cn: "朋友们计划建一座树屋。", scene: "一起计划" },
-      { en: "One carries wood, one holds the ladder.", cn: "一个搬木头，一个扶梯子。", scene: "分工合作" },
-      { en: "They solve problems as a team.", cn: "他们像团队一样解决问题。", scene: "讨论方案" },
-      { en: "Their work stands tall and strong.", cn: "他们的成果又高又牢固。", scene: "完工的树屋" },
-    ],
-  },
-
-  // ===================== G8（12岁 小学六年级） =====================
-  {
-    id: "pb-g8-1",
-    grade: "G8",
-    titleEn: "The Honest Painter",
-    titleCn: "诚实的小画家",
-    coverEmoji: "🎨",
-    coverColor: "lilac",
-    ageRange: "12岁",
-    sourceNote: SOURCE,
-    pages: [
-      { en: "Tao paints a picture for the fair.", cn: "Tao 为集市画了一幅画。", scene: "画画的 Tao" },
-      { en: "He makes one small mistake.", cn: "他出了一个小小的差错。", scene: "发现错误" },
-      { en: "He tells the truth and fixes it.", cn: "他坦白并把它改好。", scene: "诚实修正" },
-      { en: "Honesty wins more than any prize.", cn: "诚实比任何奖赏都珍贵。", scene: "被称赞" },
-    ],
-  },
-  {
-    id: "pb-g8-2",
-    grade: "G8",
-    titleEn: "Growing Up in the Forest",
-    titleCn: "在森林长大",
-    coverEmoji: "🌳",
-    coverColor: "blue",
-    ageRange: "12岁",
-    sourceNote: SOURCE,
-    pages: [
-      { en: "Years pass in the quiet woods.", cn: "岁月在安静的树林里流逝。", scene: "四季更替" },
-      { en: "The fawn learns to choose kindly.", cn: "小鹿学会了温和地做选择。", scene: "学习选择" },
-      { en: "He helps the smaller and the weak.", cn: "他帮助更小更弱的生命。", scene: "帮助弱小" },
-      { en: "That is how a forest child grows.", cn: "森林的孩子就是这样长大的。", scene: "成长" },
-    ],
-  },
-
   // ===================== G1（第3本） =====================
   {
     id: "pb-g1-3",

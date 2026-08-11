@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TtsButton } from "./TtsButton";
 import { playTts, stopTts } from "@/lib/tts/playTts";
-import { bookGrades, getBooksByGrade, type PictureBook } from "@/data/pictureBooks";
+import { bookGrades, getBooksByGrade, pictureBooks, type PictureBook } from "@/data/pictureBooks";
 
 function gradeRate(grade: string): number {
   const n = Number(grade.match(/G([1-8])/)?.[1] ?? 3);
@@ -88,7 +88,7 @@ export function PictureBookLibrary({ grade = "G1" }: { grade?: string }) {
         <div>
           <span className="section-kicker">原创双语绘本 · 女声朗读</span>
           <h1>绘本馆</h1>
-          <p>从 G1 到 G8，挑选适合孩子当前等级的故事，逐句听读。</p>
+          <p>共 {pictureBooks.length} 本完整插画绘本，从 G1 到 G8 分级阅读、逐句听读。</p>
         </div>
       </header>
 
