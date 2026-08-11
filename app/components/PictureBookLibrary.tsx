@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { TtsButton } from "./TtsButton";
-import { playTts, stopTts } from "@/lib/tts/playTts";
+import { playPreferredAudio, stopTts } from "@/lib/tts/playTts";
 import { bookGrades, getBooksByGrade, pictureBooks, type PictureBook } from "@/data/pictureBooks";
 
 function gradeRate(grade: string): number {
@@ -178,10 +178,11 @@ function Reader({
     }
     setPagePlaying(true);
     try {
-      for (const sentence of sentences) {
-        // eslint-disable-next-line no-await-in-loop
-        await playTts(sentence, { language: "en", segment: "sentence", playbackRate: rate });
-      }
+      await playPreferredAudio(page.en, page.narration, {
+        language: "en",
+        segment: "sentence",
+        playbackRate: rate,
+      });
     } catch {
       /* 网络或语音服务异常时静默停止 */
     } finally {
@@ -222,7 +223,14 @@ function Reader({
           {sentences.map((sentence, i) => (
             <span key={i} className="pb-sentence">
               {sentence}{" "}
-              <TtsButton text={sentence} segment="sentence" language="en" playbackRate={rate} label="听" />
+              <TtsButton
+                text={sentence}
+                segment="sentence"
+                language="en"
+                playbackRate={rate}
+                audioSrc={sentences.length === 1 ? page.narration : undefined}
+                label={page.narration ? "听真人朗读" : "听"}
+              />
             </span>
           ))}
           <button className={`pb-play-page ${pagePlaying ? "playing" : ""}`} onClick={() => void playPage()} type="button">

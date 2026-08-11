@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { playTts, stopTts, type TtsLanguage, type TtsSegment } from "@/lib/tts/playTts";
+import { playPreferredAudio, stopTts, type TtsLanguage, type TtsSegment } from "@/lib/tts/playTts";
 
 type TtsButtonProps = {
   text: string;
@@ -10,6 +10,7 @@ type TtsButtonProps = {
   language?: TtsLanguage;
   playbackRate?: number;
   autoPlay?: boolean;
+  audioSrc?: string;
   className?: string;
 };
 
@@ -22,6 +23,7 @@ export function TtsButton({
   language = "en",
   playbackRate = 1,
   autoPlay = false,
+  audioSrc,
   className = "",
 }: TtsButtonProps) {
   const [status, setStatus] = useState<Status>("idle");
@@ -32,7 +34,7 @@ export function TtsButton({
   useEffect(() => {
     if (!autoPlay || autoPlayStarted.current) return;
     autoPlayStarted.current = true;
-    playTts(text, { language, segment, playbackRate })
+    playPreferredAudio(text, audioSrc, { language, segment, playbackRate })
       .then(() => setStatus("idle"))
       .catch(() => setStatus("idle"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -45,7 +47,7 @@ export function TtsButton({
       return;
     }
     setStatus("loading");
-    const promise = playTts(text, { language, segment, playbackRate });
+    const promise = playPreferredAudio(text, audioSrc, { language, segment, playbackRate });
     setStatus("playing");
     try {
       await promise;

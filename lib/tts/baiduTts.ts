@@ -67,7 +67,12 @@ async function getAccessToken(apiKey: string, secretKey: string) {
   return tokenCache.value;
 }
 
-export async function synthesizeWithBaidu(input: TtsRequest, apiKey: string, secretKey: string) {
+export async function synthesizeWithBaidu(
+  input: TtsRequest,
+  apiKey: string,
+  secretKey: string,
+  voice = "0",
+) {
   const token = await getAccessToken(apiKey, secretKey);
   const body = new URLSearchParams({
     tex: normalizeTtsText(input),
@@ -78,7 +83,7 @@ export async function synthesizeWithBaidu(input: TtsRequest, apiKey: string, sec
     spd: input.segment === "word" ? "4" : "5",
     pit: "5",
     vol: "8",
-    per: "0",
+    per: voice,
     aue: "3",
   });
   const response = await fetch("https://tsn.baidu.com/text2audio", {

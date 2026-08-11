@@ -6,6 +6,8 @@ export type PictureBookPage = {
   en: string;
   cn: string;
   scene?: string;
+  // 真人女声录音；存在时绘本播放器优先使用，异常时自动回退在线语音。
+  narration?: string;
 };
 
 export type PictureBook = {

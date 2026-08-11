@@ -67,3 +67,40 @@ export async function playTts(text: string, options: TtsOptions = {}): Promise<v
     });
   });
 }
+
+// Fixed picture-book narration should use a real recorded clip when one is
+// available. The secure TTS route remains the fallback so a missing or broken
+// recording never leaves a child without audio.
+export async function playPreferredAudio(
+  text: string,
+  audioSrc: string | undefined,
+  options: TtsOptions = {},
+): Promise<void> {
+  if (!audioSrc) return playTts(text, options);
+
+  stopTts();
+  const audio = new Audio(audioSrc);
+  currentAudio = audio;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        if (currentAudio === audio) currentAudio = null;
+      };
+      audio.onended = () => {
+        cleanup();
+        resolve();
+      };
+      audio.onerror = () => {
+        cleanup();
+        reject(new Error("recording_error"));
+      };
+      audio.play().catch((error) => {
+        cleanup();
+        reject(error);
+      });
+    });
+  } catch {
+    return playTts(text, options);
+  }
+}
