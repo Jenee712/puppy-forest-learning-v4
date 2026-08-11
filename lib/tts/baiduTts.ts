@@ -23,6 +23,27 @@ export function parseTtsRequest(value: unknown): TtsRequest | null {
   return { text, language, segment };
 }
 
+// Baidu's Chinese voice may pronounce a standalone lowercase Latin letter as
+// a Chinese syllable (for example, `a` as “鹅”). Letter case is visual only:
+// both `A` and `a` should use the English letter name /eɪ/. Normalize letter
+// exercises before synthesis while leaving ordinary English words untouched.
+export function normalizeTtsText(input: TtsRequest) {
+  const text = input.text.trim();
+
+  if (input.segment === "word" && /^[A-Za-z](?:\s+[A-Za-z])*$/.test(text)) {
+    return text
+      .split(/\s+/)
+      .map((letter) => `${letter.toUpperCase()}.`)
+      .join(" ");
+  }
+
+  if (input.language === "zh") {
+    return text.replace(/((?:大写|小写|英文字母|字母)\s*)([A-Za-z])\b/g, (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
+  }
+
+  return text;
+}
+
 async function getAccessToken(apiKey: string, secretKey: string) {
   if (tokenCache && tokenCache.expiresAt > Date.now()) return tokenCache.value;
 
@@ -49,7 +70,7 @@ async function getAccessToken(apiKey: string, secretKey: string) {
 export async function synthesizeWithBaidu(input: TtsRequest, apiKey: string, secretKey: string) {
   const token = await getAccessToken(apiKey, secretKey);
   const body = new URLSearchParams({
-    tex: input.text,
+    tex: normalizeTtsText(input),
     tok: token,
     cuid: "puppy-forest-v4",
     ctp: "1",
