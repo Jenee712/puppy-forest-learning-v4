@@ -17,7 +17,7 @@ type WrongRecord = { question: QuestionItem; selectedAnswer: string; attempts: n
 const grades: Grade[] = [
   { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯" },
   { id: "G2", age: "5–6岁", school: "幼小衔接", icon: "🌿", color: "leaf", focus: "思维、规则与入学准备" },
-  { id: "G3", age: "7岁", school: "小学一年级", icon: "🌼", color: "sun", focus: "拼音、数感与学习习惯" },
+  { id: "G3", age: "7岁", school: "小学一年级", icon: "🌼", color: "sunny", focus: "拼音、数感与学习习惯" },
   { id: "G4", age: "8岁", school: "小学二年级", icon: "🌳", color: "sky", focus: "阅读、运算与观察" },
   { id: "G5", age: "9岁", school: "小学三年级", icon: "🦋", color: "lilac", focus: "写作、应用题与英语" },
   { id: "G6", age: "10岁", school: "小学四年级", icon: "🚂", color: "peach", focus: "理解、推理与表达" },
@@ -138,6 +138,10 @@ export function V4Dashboard() {
   useEffect(() => {
     setGreeting(getGreeting(new Date().getHours()));
     setStreak(loadStreak());
+    try {
+      const savedGrade = window.localStorage.getItem("puppy-forest-grade");
+      if (grades.some((grade) => grade.id === savedGrade)) setSelectedGrade(savedGrade as string);
+    } catch { /* 当前设备无法读取时使用默认等级 */ }
   }, []);
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
@@ -289,6 +293,7 @@ export function V4Dashboard() {
     setSelectedGrade(grade);
     setCompletedTasks([]);
     setSelectedCourse(null);
+    try { window.localStorage.setItem("puppy-forest-grade", grade); } catch { /* ignore */ }
   };
 
   return (
@@ -324,8 +329,8 @@ export function V4Dashboard() {
                 <Image src="/og.png" alt="小狗、小猫和小兔在森林里一起学习，小火车从身边经过" width={1200} height={630} priority unoptimized />
                 <div className="visual-hero-action"><div><span>{greeting}，小鹿 Leo</span><strong>今天还有 {dailyQuestions.length - completedTasks.length} 个学习站</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
               </section>
-              <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={changeGrade} />
-              <section className="lower-grid">
+              <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} stationCount={dailyQuestions.length} minutes={dailyMinutes} onSelect={changeGrade} />
+              <section className="lower-grid grade-content-enter" key={selectedGrade}>
                 <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} previewCount={3} onViewAll={() => goTo("今日学习")} />
                 <div className="smart-panel"><div className="smart-panel-header"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2></div><div className="smart-flow">📚<small>核心题库</small><i>→</i>🧠<small>智能出题</small><i>→</i>🌷<small>自动复习</small></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId === dailyQuestions[0]?.id ? "出题中…" : "✨ AI出题"}</button><button className="outline" onClick={() => setShowPlans(true)} type="button">永久解锁 ›</button></div></div>
               </section>
@@ -420,8 +425,8 @@ function StudyPlan({ questions, completed, onOpenTask, onGoToday }: { questions:
   );
 }
 
-function GradeRoute({ currentGrade, selectedGrade, onSelect }: { currentGrade: Grade; selectedGrade: string; onSelect: (grade: string) => void }) {
-  return <section className="grade-section"><div className="section-heading"><div><span className="section-kicker">为孩子选择合适的起点</span><h2>八级成长路线</h2></div><div className="current-pill">当前：{currentGrade.icon} {currentGrade.id} · {currentGrade.school}</div></div><div className="grade-grid">{grades.map((grade) => <button className={`grade-card ${grade.color} ${selectedGrade === grade.id ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} type="button"><span className="grade-icon">{grade.icon}</span><strong>{grade.id}</strong><b>{grade.school}</b><small>{grade.age}</small><p>{grade.focus}</p>{selectedGrade === grade.id && <i>已选择</i>}</button>)}</div></section>;
+function GradeRoute({ currentGrade, selectedGrade, stationCount, minutes, onSelect }: { currentGrade: Grade; selectedGrade: string; stationCount: number; minutes: number; onSelect: (grade: string) => void }) {
+  return <section className="grade-section"><div className="section-heading"><div><span className="section-kicker">为孩子选择合适的起点</span><h2>八级成长路线</h2></div><div className="current-pill">当前：{currentGrade.icon} {currentGrade.id} · {currentGrade.school}</div></div><div className="grade-grid" aria-label="选择学习等级">{grades.map((grade) => { const selected = selectedGrade === grade.id; return <button className={`grade-card ${grade.color} ${selected ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} aria-pressed={selected} aria-label={`切换到 ${grade.id} ${grade.school}`} type="button"><span className="grade-icon" aria-hidden="true">{grade.icon}</span><span className="grade-name"><strong>{grade.id}</strong><b>{grade.school}</b></span><small>{grade.age}</small><p>{grade.focus}</p>{selected && <i>当前</i>}</button>; })}</div><div className={`grade-choice-summary ${currentGrade.color}`} key={currentGrade.id} aria-live="polite"><span className="grade-choice-icon" aria-hidden="true">{currentGrade.icon}</span><div><small>已切换到</small><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div><dl><div><dt>今日路线</dt><dd>{stationCount}站</dd></div><div><dt>预计时长</dt><dd>{minutes}分钟</dd></div></dl></div></section>;
 }
 
 function CourseDetail({ course, grade, aiLoading, onBack, onStart, onSmartStart }: { course: Course; grade: Grade; aiLoading: boolean; onBack: () => void; onStart: (lessonIndex: number) => void; onSmartStart: () => void }) {

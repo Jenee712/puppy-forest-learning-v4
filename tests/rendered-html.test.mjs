@@ -24,6 +24,9 @@ test("server-renders the V4 learning platform", async () => {
   assert.match(html, /八级成长路线/);
   assert.match(html, /G1/);
   assert.match(html, /G8/);
+  assert.match(html, /grade-card sunny selected/);
+  assert.doesNotMatch(html, /grade-card sun selected/);
+  assert.match(html, /已切换到/);
   assert.match(html, /绘本馆/);
   assert.match(html, /32<!-- --> 个学习站/);
   assert.match(html, /先从眼前的三小步开始/);
