@@ -23,15 +23,18 @@ export class DeepSeekGenerationError extends Error {
 }
 
 const gradeProfiles: Record<string, string> = {
-  G1: "3至4岁幼儿，口语化、短句、依靠生活经验和图像提示",
-  G2: "5至6岁幼小衔接，规则意识、数量关系和基础表达",
-  G3: "7岁，小学一年级，识字数感和简短英语表达",
-  G4: "8岁，小学二年级，基础阅读、运算和观察",
-  G5: "9岁，小学三年级，段落理解、两步应用和基础英语语法",
-  G6: "10岁，小学四年级，多步推理、小数应用和英语语境",
-  G7: "11岁，小学五年级，分数应用、信息整合和综合表达",
-  G8: "12岁，小学六年级，百分数、观点论证和英语阅读推断",
+  G1: "3至4岁幼儿；通过游戏、实物和图像完成观察、比较、配对或两步口头指令，不提前教授小学学科知识",
+  G2: "5至6岁幼小衔接；在生活情境中完成分类、规律、数量关系、完整表达和简单原因判断，不做机械小学化训练",
+  G3: "7岁，小学一年级；从单项识记提升到两条线索、两步加减、句群理解和简短英语情境匹配",
+  G4: "8岁，小学二年级；以段落概括、因果顺序、表格信息、两步运算和英语短语篇理解为主，不再考字母、首音、声母或孤立拼音识记",
+  G5: "9岁，小学三年级；使用段落信息、两至三步应用、数据比较、英语语境和基础推断，避免只考一个单词或单一语法标志",
+  G6: "10岁，小学四年级；要求多步推理、数量关系建模、上下文理解、非连续文本和英语信息整合",
+  G7: "11岁，小学五年级；要求分数小数综合、观点与证据、跨句推断、条件比较和完整表达",
+  G8: "12岁，小学六年级；要求百分数比例综合、论证评价、数据证据、多约束推理和初中衔接英语阅读",
 };
+
+const minimumPromptLength: Record<string, number> = { G1: 6, G2: 8, G3: 12, G4: 18, G5: 22, G6: 26, G7: 30, G8: 34 };
+const upperGradeBasics = /声母|韵母|孤立拼音|字母大小写|字母音|首音找单词|I like|I can do it|Do you like apples/i;
 
 const allowedSubjects = new Set(["语言表达", "数量与空间", "科学探索", "健康习惯", "社会认知", "艺术创造", "英语兴趣", "语文", "数学", "英语", "科学", "阅读与表达", "综合素养"]);
 
@@ -59,6 +62,8 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
   const visual = String(item.visual).trim();
   if (visualRevealsAnswer(visual, answer)) return null;
   if (String(item.explanation).trim().length < 10) return null;
+  if (String(item.prompt).trim().length < minimumPromptLength[input.grade]) return null;
+  if (["G4", "G5", "G6", "G7", "G8"].includes(input.grade) && upperGradeBasics.test(`${item.title} ${item.prompt}`)) return null;
   const isEnglish = input.subject.includes("英语");
   let vocabulary: QuestionItem["vocabulary"];
   let grammarTip: QuestionItem["grammarTip"];
@@ -106,7 +111,7 @@ function visualRevealsAnswer(visual: string, answer: string) {
 
 function buildPrompts(input: GenerateQuestionInput) {
   const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}。如题目涉及语法、句型或阅读策略，再增加"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
-  const system = `你是中国儿童分级学习平台的审题老师。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析不能只重复答案。`;
+  const system = `你是中国儿童分级学习平台的审题老师。目标是在不超出当前年龄课程边界的前提下，把旧版偏识记的练习提升约50%的认知含量：增加相关线索、条件比较、因果顺序或推理步骤，而不是单纯加长文字。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：难度必须相对于本等级判断；G3及以上至少使用两条有关联的信息，G5及以上通常需要两步推理或比较，G7至G8优先考查证据、观点、多约束或非连续文本；答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析必须说明使用了哪些线索和步骤，不能只重复答案。`;
   const avoided = input.avoidTitles?.length ? `不要生成与这些题目相似的内容：${input.avoidTitles.join("、")}。` : "";
   return { system, user: `请生成1道${input.subject}题。等级：${input.grade}（${gradeProfiles[input.grade]}）；知识点：${input.knowledgePoint}；难度：${input.difficulty}/3。${avoided}` };
 }
