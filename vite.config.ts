@@ -13,7 +13,9 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
+  // 本地 miniflare 运行时支持的兼容日期上限，仅用于 `vinext dev`。
+  // 生产部署使用 wrangler.jsonc 的 compatibility_date（2026-08-08），不受影响。
+  compatibility_date: "2026-05-22",
   d1_databases: d1
     ? [
         {

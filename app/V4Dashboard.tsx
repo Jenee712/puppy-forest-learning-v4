@@ -5,6 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getCourseQuestions, type QuestionItem } from "../data/questionBank";
 import { getDailyCurriculum } from "../data/dailyCurriculum";
+import { TtsButton } from "./components/TtsButton";
+import { PictureBookLibrary } from "./components/PictureBookLibrary";
+import StickerShop from "./components/StickerShop";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
@@ -51,6 +54,35 @@ const products = [
   { name: "家庭全级版", price: "159", note: "G1–G8全部等级 · 2个孩子", accent: false },
 ];
 
+function getGreeting(hour: number): string {
+  if (hour < 6) return "凌晨好";
+  if (hour < 12) return "早上好";
+  if (hour < 14) return "中午好";
+  if (hour < 18) return "下午好";
+  if (hour < 22) return "晚上好";
+  return "夜深了";
+}
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function saveStreak(data: { count: number; lastDate: string }) {
+  try { window.localStorage.setItem("puppy-forest-streak", JSON.stringify(data)); } catch { /* ignore */ }
+}
+
+function loadStreak(): number {
+  try {
+    const raw = window.localStorage.getItem("puppy-forest-streak");
+    const today = todayStr();
+    if (!raw) { saveStreak({ count: 1, lastDate: today }); return 1; }
+    const data = JSON.parse(raw) as { count: number; lastDate: string };
+    if (data.lastDate === today) return data.count;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const count = data.lastDate === yesterday ? data.count + 1 : 1;
+    saveStreak({ count, lastDate: today });
+    return count;
+  } catch { return 1; }
+}
+
 function getCourses(grade: string): Course[] {
   if (grade === "G1" || grade === "G2") {
     return [
@@ -72,6 +104,7 @@ function getCourses(grade: string): Course[] {
     { icon: "🔬", name: "科学", description: "观察、实验与发现", units: 24, progress: 15, color: "green" },
     { icon: "✍️", name: "阅读与表达", description: "绘本、写作和分享", units: 26, progress: 20, color: "pink" },
     { icon: "🧠", name: "综合素养", description: "逻辑、生活与创造", units: 20, progress: 10, color: "lilac" },
+    { icon: "🍎", name: "健康习惯", description: "运动、卫生与安全", units: 20, progress: 8, color: "yellow" },
   ];
 }
 
@@ -89,11 +122,32 @@ export function V4Dashboard() {
   const [recordsReady, setRecordsReady] = useState(false);
   const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
   const [practiceNotice, setPracticeNotice] = useState<string | null>(null);
+  const [coinBalance, setCoinBalance] = useState(() => {
+    try { const raw = window.localStorage.getItem("puppy-forest-coins"); return raw ? Math.max(0, Number(raw)) : 50; } catch { return 50; }
+  });
+  const [greeting, setGreeting] = useState("你好");
+  const [streak, setStreak] = useState(1);
+
+  // 页面切换时同步金币余额（贴纸商店可能消费了金币）
+  useEffect(() => {
+    try { const raw = window.localStorage.getItem("puppy-forest-coins"); if (raw) setCoinBalance(Math.max(0, Number(raw))); } catch { /* ignore */ }
+  }, [activeNav]);
+
+  // 挂载后计算动态问候语与连续学习天数（避免 SSR hydration 不一致）
+  useEffect(() => {
+    setGreeting(getGreeting(new Date().getHours()));
+    setStreak(loadStreak());
+  }, []);
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
   const dailyQuestions = useMemo(() => getDailyCurriculum(selectedGrade), [selectedGrade]);
   const dailyMinutes = useMemo(() => dailyQuestions.reduce((sum, question) => sum + (question.estimatedMinutes ?? 3), 0), [dailyQuestions]);
+  const dailyCountByCourse = useMemo(() => {
+    const counts: Record<string, number> = {};
+    dailyQuestions.forEach((question) => { counts[question.subject] = (counts[question.subject] ?? 0) + 1; });
+    return counts;
+  }, [dailyQuestions]);
   const completedMinutes = useMemo(() => completedTasks.reduce((sum, index) => sum + (dailyQuestions[index]?.estimatedMinutes ?? 0), 0), [completedTasks, dailyQuestions]);
   const englishTaskCount = dailyQuestions.filter((question) => question.subject.includes("英语")).length;
   const pendingWrongCount = wrongRecords.filter((record) => !record.mastered).length;
@@ -129,6 +183,14 @@ export function V4Dashboard() {
     setSelectedAnswer(null);
     setAnswerState(null);
     setPracticeNotice(null);
+  };
+
+  const goToCourse = (courseName: string) => {
+    const course = courses.find((item) => item.name === courseName);
+    if (!course) return;
+    setSelectedCourse(course);
+    setActiveNav("课程中心");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const checkAnswer = () => {
@@ -187,9 +249,33 @@ export function V4Dashboard() {
     if (activeTaskIndex !== null) {
       setCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
     }
-    setActiveQuestion(null);
-    setActiveTaskIndex(null);
-    setPracticeNotice(null);
+    // 完成一题 +2 金币
+    const newCoins = coinBalance + 2;
+    setCoinBalance(newCoins);
+    try { window.localStorage.setItem("puppy-forest-coins", String(newCoins)); } catch { /* ignore */ }
+
+    // 查找下一道未完成的题目，自动跳转
+    const nextIndex = dailyQuestions.findIndex((_, idx) => {
+      const alreadyDone = activeTaskIndex !== null ? [...completedTasks, activeTaskIndex] : completedTasks;
+      return !alreadyDone.includes(idx);
+    });
+
+    if (nextIndex >= 0) {
+      // 还有未完成的题，直接打开下一题
+      openTask(nextIndex);
+    } else {
+      // 全部完成
+      setActiveQuestion(null);
+      setActiveTaskIndex(null);
+      setPracticeNotice(null);
+    }
+  };
+
+  // 贴纸商店消费金币（与顶栏 coinBalance 共用同一状态与 localStorage）
+  const spendCoins = (price: number) => {
+    const newCoins = Math.max(0, coinBalance - price);
+    setCoinBalance(newCoins);
+    try { window.localStorage.setItem("puppy-forest-coins", String(newCoins)); } catch { /* ignore */ }
   };
 
   const goTo = (label: string) => {
@@ -220,14 +306,14 @@ export function V4Dashboard() {
             </div>
           ))}
         </nav>
-        <div className="profile-card"><span className="deer" aria-hidden="true">🦌</span><div><strong>小鹿 Leo</strong><small>{selectedGrade} · 连续6天</small></div><button aria-label="进入家长中心" onClick={() => goTo("家长中心")} type="button">›</button></div>
+        <div className="profile-card"><span className="deer" aria-hidden="true">🦌</span><div><strong>小鹿 Leo</strong><small>{selectedGrade} · 连续{streak}天</small></div><button aria-label="进入家长中心" onClick={() => goTo("家长中心")} type="button">›</button></div>
       </aside>
 
       <main>
         <header className="topbar">
           <div className="mobile-brand"><span>🐶</span>森林学堂</div>
           <div className="progress-wrap"><span>今日 {completedMinutes} / {dailyMinutes} 分钟</span><div className="progress"><i style={{ width: `${Math.round(completedMinutes / dailyMinutes * 100)}%` }} /></div></div>
-          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><button className="coin" type="button">🪙 {42 + completedTasks.length * 5}</button><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
+          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><button className="coin" type="button">🪙 {coinBalance}</button><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
         </header>
 
         <div className="content">
@@ -235,12 +321,12 @@ export function V4Dashboard() {
             <>
               <section className="visual-hero" aria-label="小狗的森林学堂主视觉">
                 <Image src="/og.png" alt="小狗、小猫和小兔在森林里一起学习，小火车从身边经过" width={1200} height={630} priority unoptimized />
-                <div className="visual-hero-action"><div><span>下午好，小鹿 Leo</span><strong>今天还有 {dailyQuestions.length - completedTasks.length} 个学习站</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
+                <div className="visual-hero-action"><div><span>{greeting}，小鹿 Leo</span><strong>今天还有 {dailyQuestions.length - completedTasks.length} 个学习站</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
               </section>
               <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={changeGrade} />
               <section className="lower-grid">
-                <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} onOpen={openTask} />
-                <div className="smart-panel"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2><p>核心题库保证基础，AI根据薄弱知识点生成练习，答错后自动进入复习计划。</p><div className="smart-flow"><span>📚<small>核心题库</small></span><i>→</i><span>🧠<small>智能出题</small></span><i>→</i><span>🌷<small>自动复习</small></span></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null} type="button">{aiLoadingId === dailyQuestions[0].id ? "正在智能出题…" : "✨ AI智能出题"}</button><button className="outline" onClick={() => setShowPlans(true)} type="button">查看永久解锁方案</button></div></div>
+                <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} />
+                <div className="smart-panel"><div className="smart-panel-header"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2></div><div className="smart-flow">📚<small>核心题库</small><i>→</i>🧠<small>智能出题</small><i>→</i>🌷<small>自动复习</small></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId === dailyQuestions[0]?.id ? "出题中…" : "✨ AI出题"}</button><button className="outline" onClick={() => setShowPlans(true)} type="button">永久解锁 ›</button></div></div>
               </section>
             </>
           )}
@@ -249,8 +335,8 @@ export function V4Dashboard() {
             <section className="page-surface today-page">
               <PageTitle eyebrow="系统已经为孩子准备好了" title="今日学习路线" subtitle={`${currentGrade.id} · ${currentGrade.school} · ${dailyQuestions.length}站 · 预计${dailyMinutes}分钟`} icon="☀️" />
               <div className="learning-density"><span>🇬🇧 英语 {englishTaskCount} 站</span><strong>{Math.round(englishTaskCount / dailyQuestions.length * 100)}%</strong><p>英语为主线，包含听读、双向翻译、词句训练与分级阅读。</p></div>
-              <div className="today-summary"><div><strong>{completedTasks.length}<small>/ {dailyQuestions.length}</small></strong><span>今日完成</span></div><div><strong>{42 + completedTasks.length * 5}</strong><span>森林金币</span></div><div><strong>{dailyMinutes}</strong><span>预计分钟</span></div></div>
-              <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} onOpen={openTask} standalone />
+              <div className="today-summary"><div><strong>{completedTasks.length}<small>/ {dailyQuestions.length}</small></strong><span>今日完成</span></div><div><strong>{coinBalance}</strong><span>森林金币</span></div><div><strong>{dailyMinutes}</strong><span>预计分钟</span></div></div>
+              <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} standalone />
               <div className="gentle-note"><span>🌿</span><div><strong>学完记得看远处、活动一下</strong><p>每完成一个任务，系统会根据表现调整下一次练习。</p></div></div>
             </section>
           )}
@@ -264,7 +350,7 @@ export function V4Dashboard() {
                   <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
                   <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => changeGrade(grade.id)} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
                   <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div><button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button></div>
-                  <div className="course-grid">{courses.map((course) => <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span>已完成 {course.progress}%</span><button onClick={() => { setSelectedCourse(course); window.scrollTo({ top: 0, behavior: "smooth" }); }} type="button">进入课程 →</button></footer></article>)}</div>
+                  <div className="course-grid">{courses.map((course) => { const dailyCount = dailyCountByCourse[course.name] ?? 0; return <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span className="course-foot">{dailyCount > 0 && <button className="course-daily" onClick={() => goTo("今日学习")} type="button">☀️ 今日学习 {dailyCount} 站</button>}<i>已完成 {course.progress}%</i></span><button onClick={() => { setSelectedCourse(course); window.scrollTo({ top: 0, behavior: "smooth" }); }} type="button">进入课程 →</button></footer></article>; })}</div>
                 </>
               )}
             </section>
@@ -272,8 +358,12 @@ export function V4Dashboard() {
 
           {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} loadingId={aiLoadingId} onRetry={retryWrongQuestion} onSmartPractice={openSmartPractice} onCourse={() => goTo("课程中心")} />}
           {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} totalTasks={dailyQuestions.length} onGarden={() => goTo("复习花园")} />}
+          {activeNav === "绘本馆" && <PictureBookLibrary grade={selectedGrade} />}
+          {activeNav === "贴纸册" && <StickerShop coins={coinBalance} onSpend={spendCoins} />}
 
-          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
+          {activeNav === "学习计划" && <StudyPlan questions={dailyQuestions} completed={completedTasks} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
+
+          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
           {activeQuestion && <LessonModal question={activeQuestion} notice={practiceNotice} selectedAnswer={selectedAnswer} answerState={answerState} aiLoading={aiLoadingId !== null} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onSmartNext={continueWithSmartPractice} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); setPracticeNotice(null); }} />}
@@ -281,9 +371,51 @@ export function V4Dashboard() {
       </main>
 
       <nav className="mobile-nav" aria-label="手机导航">
-        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
+        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["✨", "贴纸", "贴纸册"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
       </nav>
     </div>
+  );
+}
+
+function StudyPlan({ questions, completed, onOpenTask, onGoToday }: { questions: QuestionItem[]; completed: number[]; onOpenTask: (index: number) => void; onGoToday: () => void }) {
+  const groups = useMemo(() => {
+    const map = new Map<string, { q: QuestionItem; idx: number }[]>();
+    questions.forEach((q, idx) => {
+      const arr = map.get(q.subject) ?? [];
+      arr.push({ q, idx });
+      map.set(q.subject, arr);
+    });
+    return [...map.entries()];
+  }, [questions]);
+  const totalMinutes = questions.reduce((sum, q) => sum + (q.estimatedMinutes ?? 3), 0);
+
+  return (
+    <section className="page-surface study-plan-page">
+      <PageTitle eyebrow="为孩子安排好的每日节奏" title="学习计划" subtitle={`今日 ${questions.length} 站 · 预计 ${totalMinutes} 分钟 · 按科目分组循序渐进`} icon="🗺️" />
+      <div className="today-summary">
+        <div><strong>{completed.length}<small>/ {questions.length}</small></strong><span>今日完成</span></div>
+        <div><strong>{groups.length}</strong><span>今日科目</span></div>
+        <div><strong>{totalMinutes}</strong><span>预计分钟</span></div>
+      </div>
+      <div className="plan-subject-list">
+        {groups.map(([subject, items]) => {
+          const doneCount = items.filter(({ idx }) => completed.includes(idx)).length;
+          return (
+            <article className="plan-subject" key={subject}>
+              <header><strong>{subject}</strong><span>{doneCount}/{items.length} 已完成</span></header>
+              <div className="plan-task-chips">
+                {items.map(({ q, idx }) => (
+                  <button className={completed.includes(idx) ? "plan-chip done" : "plan-chip"} key={idx} onClick={() => onOpenTask(idx)} type="button" title={q.title}>
+                    {completed.includes(idx) ? "✅ " : ""}{q.knowledgePoint}
+                  </button>
+                ))}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="gentle-note"><span>🌿</span><div><strong>按节奏慢慢来</strong><p>每天完成今日计划即可，进度会保存在本设备。点任意任务就能开始学习。</p></div><button className="plan-go-today" onClick={onGoToday} type="button">前往今日学习 →</button></div>
+    </section>
   );
 }
 
@@ -318,6 +450,7 @@ function CourseDetail({ course, grade, aiLoading, onBack, onStart, onSmartStart 
   if (course.name === "英语" && grade.id === "G8") lessons = ["整合信息并作出推断", "计划、变化与原因", "在语境中判断时态", "阅读短文并概括主旨"];
   if (course.name === "数学" && grade.id === "G8") lessons = ["百分数与折扣综合应用", "比与比例解决问题", "圆的周长和面积", "用方程表示数量关系"];
   if (course.name === "语文" && grade.id === "G8") lessons = ["判断观点与支撑依据", "概括段落和文章主旨", "品味关键语句的表达效果", "根据材料表达完整观点"];
+  if (course.name === "健康习惯" && Number(grade.id.slice(1)) >= 3) lessons = ["今天吃什么更健康", "眼睛、姿势和屏幕", "运动前中后怎么做", "睡眠与情绪小管家"];
   const availableLessons = Math.min(getCourseQuestions(course.name, grade.id).length, lessons.length);
 
   return <div className="course-detail">
@@ -329,12 +462,17 @@ function CourseDetail({ course, grade, aiLoading, onBack, onStart, onSmartStart 
   </div>;
 }
 
-function TaskPanel({ completedTasks, questions, onOpen, standalone = false }: { completedTasks: number[]; questions: QuestionItem[]; onOpen: (index: number) => void; standalone?: boolean }) {
-  const groups = [
-    { label: "英语主线", note: "听 · 读 · 写 · 双向翻译", indices: questions.map((question, index) => question.subject.includes("英语") ? index : -1).filter((index) => index >= 0) },
-    { label: "综合素养", note: "语文 · 数学 · 科学与生活", indices: questions.map((question, index) => !question.subject.includes("英语") ? index : -1).filter((index) => index >= 0) },
-  ];
-  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">系统已按当前等级匹配难度</span><h2>今日学习路线</h2></div><span className="task-count">{completedTasks.length} / {questions.length} 完成</span></div>{groups.map((group) => <section className="task-group" key={group.label}><header><strong>{group.label}</strong><span>{group.note}</span><em>{group.indices.length}站</em></header><div className="task-list">{group.indices.map((index) => { const question = questions[index]; const done = completedTasks.includes(index); const look = getTaskLook(question); return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.subject} · ${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></section>)}</div>;
+function TaskPanel({ completedTasks, questions, courses, onOpen, onGoCourse, standalone = false }: { completedTasks: number[]; questions: QuestionItem[]; courses: Course[]; onOpen: (index: number) => void; onGoCourse?: (courseName: string) => void; standalone?: boolean }) {
+  const groups = useMemo(() => {
+    const order: string[] = [];
+    const bySubject: Record<string, number[]> = {};
+    questions.forEach((question, index) => {
+      if (!bySubject[question.subject]) { bySubject[question.subject] = []; order.push(question.subject); }
+      bySubject[question.subject].push(index);
+    });
+    return order.map((subject) => ({ subject, indices: bySubject[subject] }));
+  }, [questions]);
+  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">为你精心准备的今日挑战</span><h2>今日学习路线</h2></div><span className="task-count">{completedTasks.length} / {questions.length} 完成</span></div>{groups.map((group) => { const course = courses.find((item) => item.name === group.subject); return <section className="task-group" key={group.subject}><header><strong><span className="group-course-icon" aria-hidden="true">{course?.icon ?? "📘"}</span>{group.subject}</strong><span>{course?.description ?? "今日学习内容"}</span><em>{group.indices.length}站</em>{onGoCourse && <button className="group-go-course" onClick={() => onGoCourse(group.subject)} type="button">进入课程 →</button>}</header><div className="task-list">{group.indices.map((index) => { const question = questions[index]; const done = completedTasks.includes(index); const look = getTaskLook(question); return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></section>; })}</div>;
 }
 
 function PageTitle({ eyebrow, title, subtitle, icon }: { eyebrow: string; title: string; subtitle: string; icon: string }) {
@@ -419,62 +557,6 @@ function getEnglishPlaybackRate(grade: string) {
 function DictionaryExpansion({ question }: { question: QuestionItem }) {
   const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
   return <section className="dictionary-panel"><header><span>📖</span><div><small>本题词汇扩展</small><strong>AI 小词典</strong></div><em>{question.vocabulary?.length ?? 0} 个重点</em></header><div className="dictionary-grid">{question.vocabulary?.map((item) => <article className="dictionary-card" key={item.term}><div className="dictionary-term"><div><strong>{item.term}</strong>{item.phonetic && <span>{item.phonetic}</span>}</div><em>{item.tag}</em></div><p className="dictionary-meaning">{item.meaning}</p><div className="dictionary-audio-actions"><TtsButton text={item.term.replaceAll("...", "")} playbackRate={englishPlaybackRate} segment="word" label="听单词" /><TtsButton text={item.example} playbackRate={englishPlaybackRate} segment="sentence" label="听例句" /></div><p className="dictionary-expansion">💡 {item.expansion}</p><div className="dictionary-example"><strong>{item.example}</strong><span>{item.exampleMeaning}</span></div></article>)}</div>{question.grammarTip && <aside className="grammar-tip"><span>🧩</span><div><small>{question.grammarTip.title}</small><strong>{question.grammarTip.pattern}</strong><p>{question.grammarTip.explanation}</p></div></aside>}</section>;
-}
-
-function TtsButton({ text, segment, label, language = "en", playbackRate = 1, autoPlay = false }: { text: string; segment: "word" | "sentence"; label: string; language?: "en" | "zh"; playbackRate?: number; autoPlay?: boolean }) {
-  const [status, setStatus] = useState<"idle" | "loading" | "playing" | "error">("idle");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
-  const autoPlayStartedRef = useRef(false);
-
-  const stop = () => {
-    audioRef.current?.pause();
-    audioRef.current = null;
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = null;
-    setStatus("idle");
-  };
-
-  useEffect(() => () => {
-    audioRef.current?.pause();
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-  }, []);
-
-  const play = async (silentFailure = false) => {
-    if (status === "playing") return stop();
-    setStatus("loading");
-    try {
-      const response = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, language, segment }) });
-      if (!response.ok) throw new Error("tts_failed");
-      const url = URL.createObjectURL(await response.blob());
-      const audio = new Audio(url);
-      audio.playbackRate = playbackRate;
-      audio.defaultPlaybackRate = playbackRate;
-      audio.preservesPitch = true;
-      audioRef.current = audio;
-      urlRef.current = url;
-      audio.onended = stop;
-      audio.onerror = () => setStatus("error");
-      await audio.play();
-      setStatus("playing");
-    } catch {
-      stop();
-      if (!silentFailure) {
-        setStatus("error");
-        window.setTimeout(() => setStatus("idle"), 1800);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (!autoPlay || autoPlayStartedRef.current) return;
-    autoPlayStartedRef.current = true;
-    void play(true);
-  }, [autoPlay]);
-
-  const textLabel = status === "loading" ? "生成中" : status === "playing" ? "停止" : status === "error" ? "稍后再试" : label;
-  const rateLabel = language === "en" && playbackRate < 1 ? `${playbackRate.toFixed(2)}×` : null;
-  return <button className={`tts-button ${status}`} onClick={() => void play(false)} disabled={status === "loading"} aria-label={`${label}：${text}${rateLabel ? `，${rateLabel}慢速` : ""}`} type="button"><span aria-hidden="true">{status === "playing" ? "■" : "🔊"}</span>{textLabel}{rateLabel && <em className="tts-rate">{rateLabel}</em>}</button>;
 }
 
 function FeedbackAudio({ state }: { state: "correct" | "wrong" }) {
