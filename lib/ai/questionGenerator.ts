@@ -73,10 +73,14 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
       return { term: String(word.term).trim(), phonetic: typeof word.phonetic === "string" ? word.phonetic.trim() : undefined, tag: String(word.tag).trim(), meaning: String(word.meaning).trim(), expansion: String(word.expansion).trim(), example: String(word.example).trim(), exampleMeaning: String(word.exampleMeaning).trim() };
     }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
     if (vocabulary.length !== item.vocabulary.length) return null;
-    if (!item.grammarTip || typeof item.grammarTip !== "object") return null;
-    const tip = item.grammarTip as Record<string, unknown>;
-    if (["title", "pattern", "explanation"].some((key) => typeof tip[key] !== "string" || String(tip[key]).trim().length < 2)) return null;
-    grammarTip = { title: String(tip.title).trim(), pattern: String(tip.pattern).trim(), explanation: String(tip.explanation).trim() };
+    // 词汇解析是英语题的必备学习内容；语法提示只在题目确实涉及语法时展示。
+    // 过去把 grammarTip 设为硬性条件，会把内容正确的词汇/阅读题误判为生成失败。
+    if (item.grammarTip !== undefined) {
+      if (!item.grammarTip || typeof item.grammarTip !== "object") return null;
+      const tip = item.grammarTip as Record<string, unknown>;
+      if (["title", "pattern", "explanation"].some((key) => typeof tip[key] !== "string" || String(tip[key]).trim().length < 2)) return null;
+      grammarTip = { title: String(tip.title).trim(), pattern: String(tip.pattern).trim(), explanation: String(tip.explanation).trim() };
+    }
   }
   return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual, options, answer, explanation: String(item.explanation).trim(), vocabulary, grammarTip };
 }
@@ -101,22 +105,35 @@ function visualRevealsAnswer(visual: string, answer: string) {
 }
 
 function buildPrompts(input: GenerateQuestionInput) {
-  const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}；以及"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
+  const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}。如题目涉及语法、句型或阅读策略，再增加"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
   const system = `你是中国儿童分级学习平台的审题老师。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析不能只重复答案。`;
   const avoided = input.avoidTitles?.length ? `不要生成与这些题目相似的内容：${input.avoidTitles.join("、")}。` : "";
   return { system, user: `请生成1道${input.subject}题。等级：${input.grade}（${gradeProfiles[input.grade]}）；知识点：${input.knowledgePoint}；难度：${input.difficulty}/3。${avoided}` };
+}
+
+function parseModelJson(content: string): unknown {
+  const unfenced = content.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try {
+    return JSON.parse(unfenced);
+  } catch {
+    const start = unfenced.indexOf("{");
+    const end = unfenced.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new DeepSeekGenerationError("invalid_json");
+    return JSON.parse(unfenced.slice(start, end + 1));
+  }
 }
 
 export async function generateWithDeepSeek(input: GenerateQuestionInput, apiKey: string): Promise<QuestionItem | null> {
   const prompts = buildPrompts(input);
   let lastFailure: DeepSeekFailureCode = "provider";
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    const retryGuidance = attempt === 0 ? "" : "\n上一次输出未通过格式或答案审核。请重新检查：答案必须与一个选项逐字一致；visual不得泄露答案；英语题必须提供完整词汇解析；只输出一个json对象。";
     let response: Response;
     try {
       response = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "system", content: prompts.system }, { role: "user", content: prompts.user }], response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.35, max_tokens: input.subject.includes("英语") ? 1800 : 1300, stream: false }),
+        body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "system", content: prompts.system }, { role: "user", content: `${prompts.user}${retryGuidance}` }], response_format: { type: "json_object" }, thinking: { type: "disabled" }, temperature: 0.2, max_tokens: input.subject.includes("英语") ? 1800 : 1300, stream: false }),
         signal: AbortSignal.timeout(25_000),
       });
     } catch (error) {
@@ -134,7 +151,7 @@ export async function generateWithDeepSeek(input: GenerateQuestionInput, apiKey:
       continue;
     }
     try {
-      const question = validateGeneratedQuestion(JSON.parse(content), input);
+      const question = validateGeneratedQuestion(parseModelJson(content), input);
       if (question) return question;
       lastFailure = "validation";
     } catch {

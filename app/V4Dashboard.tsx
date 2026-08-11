@@ -233,7 +233,7 @@ export function V4Dashboard() {
       setPracticeNotice(data.fallback ? (data.reason ?? "已切换到本地核心题") : successMessage);
     } catch {
       setActiveQuestion(question);
-      setPracticeNotice("网络暂时不稳定，已切换到本地核心题");
+      setPracticeNotice("智能出题暂时不可用，已切换到本地核心题");
     } finally {
       setActiveTaskIndex(null);
       setSelectedAnswer(null);

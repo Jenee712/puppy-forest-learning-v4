@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     if (question) return Response.json({ question, engine: "ai_model", fallback: false });
   } catch (error) {
     const failureCode = error instanceof DeepSeekGenerationError ? error.code : "provider";
+    console.warn("[smart-question-fallback]", { failureCode, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint });
     return Response.json({ question: fallbackQuestion, engine: "local_core", fallback: true, failureCode, reason: failureReasons[failureCode] });
   }
   return Response.json({ question: fallbackQuestion, engine: "local_core", fallback: true, failureCode: "validation", reason: failureReasons.validation });
