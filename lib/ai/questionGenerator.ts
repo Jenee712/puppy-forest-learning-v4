@@ -25,12 +25,12 @@ export class DeepSeekGenerationError extends Error {
 const gradeProfiles: Record<string, string> = {
   G1: "3至4岁幼儿；通过游戏、实物和图像完成观察、比较、配对或两步口头指令，不提前教授小学学科知识",
   G2: "5至6岁幼小衔接；在生活情境中完成分类、规律、数量关系、完整表达和简单原因判断，不做机械小学化训练",
-  G3: "7岁，小学一年级；从单项识记提升到两条线索、两步加减、句群理解和简短英语情境匹配",
-  G4: "8岁，小学二年级；以段落概括、因果顺序、表格信息、两步运算和英语短语篇理解为主，不再考字母、首音、声母或孤立拼音识记",
-  G5: "9岁，小学三年级；使用段落信息、两至三步应用、数据比较、英语语境和基础推断，避免只考一个单词或单一语法标志",
-  G6: "10岁，小学四年级；要求多步推理、数量关系建模、上下文理解、非连续文本和英语信息整合",
-  G7: "11岁，小学五年级；要求分数小数综合、观点与证据、跨句推断、条件比较和完整表达",
-  G8: "12岁，小学六年级；要求百分数比例综合、论证评价、数据证据、多约束推理和初中衔接英语阅读",
+  G3: "7岁，小学一年级；以单项识记、一条明确线索、一步加减和简短英语词句匹配为主",
+  G4: "8岁，小学二年级；以短句理解、直接因果、表内乘除和英语日常表达为主，不再考字母、首音、声母或孤立拼音识记",
+  G5: "9岁，小学三年级；使用一至两条段落信息、两步整数应用、英语基础时态和直接推断",
+  G6: "10岁，小学四年级；使用两步运算、简单数据读取、上下文理解和英语日常信息提取",
+  G7: "11岁，小学五年级；使用小数分数应用、跨句理解、条件比较和完整表达，避免论证评价",
+  G8: "12岁，小学六年级；使用百分数比例基础、段落主旨、两至三条信息整合和小学毕业衔接英语",
 };
 
 const minimumPromptLength: Record<string, number> = { G1: 6, G2: 8, G3: 12, G4: 18, G5: 22, G6: 26, G7: 30, G8: 34 };
@@ -62,7 +62,8 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
   const visual = String(item.visual).trim();
   if (visualRevealsAnswer(visual, answer)) return null;
   if (String(item.explanation).trim().length < 10) return null;
-  if (String(item.prompt).trim().length < minimumPromptLength[input.grade]) return null;
+  const subjectFactor = input.subject.includes("英语") ? 0.7 : input.subject === "数学" ? 0.8 : 1;
+  if (String(item.prompt).trim().length < Math.ceil(minimumPromptLength[input.grade] * subjectFactor)) return null;
   if (["G4", "G5", "G6", "G7", "G8"].includes(input.grade) && upperGradeBasics.test(`${item.title} ${item.prompt}`)) return null;
   if (!item.optionExplanations || typeof item.optionExplanations !== "object" || Array.isArray(item.optionExplanations)) return null;
   const rawOptionExplanations = item.optionExplanations as Record<string, unknown>;
@@ -119,7 +120,12 @@ function visualRevealsAnswer(visual: string, answer: string) {
 
 function buildPrompts(input: GenerateQuestionInput) {
   const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}。如题目涉及语法、句型或阅读策略，再增加"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
-  const system = `你是中国儿童分级学习平台的审题老师。目标是在不超出当前年龄课程边界的前提下，把旧版偏识记的练习提升约50%的认知含量：增加相关线索、条件比较、因果顺序或推理步骤，而不是单纯加长文字。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清总体推理过程","optionExplanations":{"选项1":"为什么正确或错误","选项2":"为什么正确或错误","选项3":"为什么正确或错误"}}。optionExplanations必须使用与options完全相同的选项文字作为键，逐项说明实际含义、使用的线索以及为什么符合或不符合，不能只写“错误”“不符合题意”。${englishSchema}要求：难度必须相对于本等级判断；G3及以上至少使用两条有关联的信息，G5及以上通常需要两步推理或比较，G7至G8优先考查证据、观点、多约束或非连续文本；答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析必须说明使用了哪些线索和步骤，不能只重复答案。`;
+  const subjectCalibration = input.subject.includes("英语")
+    ? "英语题相对旧版降低约30%：缩短句长，减少生僻词和同时处理的线索；G3至G4以词句和直接信息为主，G5至G6最多整合两条信息，G7至G8以小学毕业阅读、基础时态和日常表达为主，不考论证漏洞或初中语法改写。"
+    : input.subject === "数学"
+      ? "数学题相对旧版降低约20%：减少一步运算或缩小数字范围，严格使用本年级已学知识；不得用超前年级的方程、函数、勾股定理、圆面积或比例知识。"
+      : "保持当前适龄难度。";
+  const system = `你是中国儿童分级学习平台的审题老师。${subjectCalibration}只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清总体推理过程","optionExplanations":{"选项1":"为什么正确或错误","选项2":"为什么正确或错误","选项3":"为什么正确或错误"}}。optionExplanations必须使用与options完全相同的选项文字作为键，逐项说明实际含义、使用的线索以及为什么符合或不符合，不能只写“错误”“不符合题意”。${englishSchema}要求：难度必须相对于本等级判断；答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应合理但可排除；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析必须说明使用了哪些线索和步骤，不能只重复答案。`;
   const avoided = input.avoidTitles?.length ? `不要生成与这些题目相似的内容：${input.avoidTitles.join("、")}。` : "";
   return { system, user: `请生成1道${input.subject}题。等级：${input.grade}（${gradeProfiles[input.grade]}）；知识点：${input.knowledgePoint}；难度：${input.difficulty}/3。${avoided}` };
 }

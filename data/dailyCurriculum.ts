@@ -33,7 +33,33 @@ function arrangeForStudyDay(items: QuestionItem[], day: number) {
 }
 
 function makeEnglish(grade: string, index: number, draft: Draft): QuestionItem {
-  return { ...draft, id: `${grade.toLowerCase()}-daily-english-${index + 1}`, grade, eyebrow: `${grade} · 英语学习站`, source: "local_core" };
+  const englishDifficultyCeilings: Record<string, QuestionItem["difficulty"]> = { G1: 1, G2: 1, G3: 1, G4: 1, G5: 2, G6: 2, G7: 2, G8: 2 };
+  const difficultyCeiling = englishDifficultyCeilings[grade] ?? 2;
+  const easierG8Draft: Draft = draft.title === "判断证据是否充分"
+    ? {
+        ...draft,
+        knowledgePoint: "短文原因理解",
+        title: "读懂选择的原因",
+        prompt: "Mia can do homework online or on paper. She chooses online homework because she can hear the new English words. Why does Mia choose online homework?",
+        visual: "online homework → hear new words",
+        options: ["She can hear the new words.", "She has no paper at home.", "Her cousin chose it."],
+        answer: "She can hear the new words.",
+        explanation: "短文直接说明 Mia 选择线上作业，是因为她可以听到英语新词。",
+        vocabulary: [{ term: "choose", phonetic: "/tʃuːz/", tag: "动词", meaning: "选择", expansion: "choose A or B 表示在两个选项中作选择。", example: "You can choose online work or paper work.", exampleMeaning: "你可以选择线上作业或纸质作业。" }],
+      }
+    : draft.title === "保持句意不变"
+      ? {
+          ...draft,
+          knowledgePoint: "句意理解",
+          title: "选出相同意思",
+          prompt: "The box is very heavy. Mia cannot carry it. Which sentence has the same meaning?",
+          visual: "📦 very heavy → Mia cannot carry it",
+          options: ["The box is too heavy for Mia to carry.", "Mia carries the light box.", "The box is easy for Mia to carry."],
+          answer: "The box is too heavy for Mia to carry.",
+          explanation: "very heavy 和 cannot carry 合起来，可以用 too heavy to carry 表达。",
+        }
+      : draft;
+  return { ...easierG8Draft, difficulty: easierG8Draft.difficulty > difficultyCeiling ? difficultyCeiling : easierG8Draft.difficulty, id: `${grade.toLowerCase()}-daily-english-${index + 1}`, grade, eyebrow: `${grade} · 英语学习站`, source: "local_core" };
 }
 
 const englishDaily: Record<string, Draft[]> = {
@@ -158,7 +184,7 @@ export function auditStudyProgram() {
 const upperGradeRegression = /声母|韵母|孤立拼音|字母大小写|声音与字母|字母音|首音找单词|I can do it|Do you like apples/i;
 
 export function auditGradeDifficulty() {
-  const englishFloors: Record<string, number> = { G1: 1, G2: 1, G3: 1, G4: 2, G5: 2, G6: 2, G7: 2.4, G8: 2.8 };
+  const englishFloors: Record<string, number> = { G1: 1, G2: 1, G3: 1, G4: 1, G5: 1.5, G6: 1.8, G7: 2, G8: 2 };
   return Object.keys(englishDaily).map((grade) => {
     const englishItems = getDailyCurriculum(grade).filter((item) => item.subject.includes("英语"));
     const averageDifficulty = englishItems.reduce((sum, item) => sum + item.difficulty, 0) / Math.max(1, englishItems.length);
@@ -169,6 +195,26 @@ export function auditGradeDifficulty() {
   });
 }
 
+// 防止后续补题时再次把明显超出当前小学年级的数学概念混入每日路线。
+const outOfGradeMathPatterns: Record<string, RegExp> = {
+  G3: /小数|分数|面积|方程|百分数|比例|勾股|函数/,
+  G4: /小数|分数|面积|方程|百分数|比例|勾股|函数/,
+  G5: /方程|百分数|比例|圆面积|勾股|函数/,
+  G6: /百分数|比例|圆面积|勾股|函数/,
+  G7: /方程|圆面积|勾股|函数/,
+  G8: /勾股|一次函数|二次函数/,
+};
+
+export function auditMathGradeAlignment() {
+  return Object.keys(englishDaily).map((grade) => {
+    const pattern = outOfGradeMathPatterns[grade];
+    const violations = getDailyCurriculum(grade)
+      .filter((item) => item.subject === "数学" && pattern.test(`${item.title} ${item.knowledgePoint} ${item.prompt}`))
+      .map((item) => item.title);
+    return { grade, violations };
+  });
+}
+
 // 每日课程 = 英语 8 站 + 六门伴随学科各 4 站（基础1 + subjectDailyExtras 3）；要求：总站数 ≥14、英语 ≥8、时长 ≥40 分钟
 const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishCount < 8 || plan.minutes < 40);
 if (invalidPlans.length) throw new Error(`每日课程密度不达标：${invalidPlans.map((plan) => plan.grade).join(", ")}`);
@@ -176,3 +222,5 @@ const invalidStudyDays = auditStudyProgram().filter((plan) => plan.total < 14 ||
 if (invalidStudyDays.length) throw new Error(`90天排课异常：${invalidStudyDays.slice(0, 5).map((plan) => `${plan.grade}第${plan.day}天`).join("、")}`);
 const misalignedGrades = auditGradeDifficulty().filter((item) => item.averageDifficulty < item.floor || item.regressions.length > 0);
 if (misalignedGrades.length) throw new Error(`年级难度回退：${misalignedGrades.map((item) => `${item.grade}${item.regressions.length ? `(${item.regressions.join("、")})` : ""}`).join(", ")}`);
+const outOfGradeMath = auditMathGradeAlignment().filter((item) => item.violations.length > 0);
+if (outOfGradeMath.length) throw new Error(`数学内容超出年级：${outOfGradeMath.map((item) => `${item.grade}(${item.violations.join("、")})`).join(", ")}`);
