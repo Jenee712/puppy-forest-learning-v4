@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getCourseQuestions, type QuestionItem } from "../data/questionBank";
 import { getDailyCurriculum } from "../data/dailyCurriculum";
+import { getCourseCatalog } from "../data/courseCatalog";
 import { TtsButton } from "./components/TtsButton";
 import { PictureBookLibrary } from "./components/PictureBookLibrary";
 import StickerShop from "./components/StickerShop";
@@ -309,11 +310,11 @@ export function V4Dashboard() {
         <div className="profile-card"><span className="deer" aria-hidden="true">🦌</span><div><strong>小鹿 Leo</strong><small>{selectedGrade} · 连续{streak}天</small></div><button aria-label="进入家长中心" onClick={() => goTo("家长中心")} type="button">›</button></div>
       </aside>
 
-      <main>
+      <main id="main-content">
         <header className="topbar">
           <div className="mobile-brand"><span>🐶</span>森林学堂</div>
-          <div className="progress-wrap"><span>今日 {completedMinutes} / {dailyMinutes} 分钟</span><div className="progress"><i style={{ width: `${Math.round(completedMinutes / dailyMinutes * 100)}%` }} /></div></div>
-          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><button className="coin" type="button">🪙 {coinBalance}</button><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
+          <div className="progress-wrap"><span>今日 {completedMinutes} / {dailyMinutes} 分钟</span><div className="progress" role="progressbar" aria-label="今日学习进度" aria-valuemin={0} aria-valuemax={dailyMinutes} aria-valuenow={completedMinutes}><i style={{ width: `${Math.round(completedMinutes / dailyMinutes * 100)}%` }} /></div></div>
+          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><div className="coin" aria-label={`森林金币 ${coinBalance} 枚`}>🪙 {coinBalance}</div><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
         </header>
 
         <div className="content">
@@ -325,7 +326,7 @@ export function V4Dashboard() {
               </section>
               <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} onSelect={changeGrade} />
               <section className="lower-grid">
-                <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} />
+                <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} previewCount={3} onViewAll={() => goTo("今日学习")} />
                 <div className="smart-panel"><div className="smart-panel-header"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2></div><div className="smart-flow">📚<small>核心题库</small><i>→</i>🧠<small>智能出题</small><i>→</i>🌷<small>自动复习</small></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId === dailyQuestions[0]?.id ? "出题中…" : "✨ AI出题"}</button><button className="outline" onClick={() => setShowPlans(true)} type="button">永久解锁 ›</button></div></div>
               </section>
             </>
@@ -424,55 +425,30 @@ function GradeRoute({ currentGrade, selectedGrade, onSelect }: { currentGrade: G
 }
 
 function CourseDetail({ course, grade, aiLoading, onBack, onStart, onSmartStart }: { course: Course; grade: Grade; aiLoading: boolean; onBack: () => void; onStart: (lessonIndex: number) => void; onSmartStart: () => void }) {
-  const lessonNames: Record<string, string[]> = {
-    "语言表达": ["看图说一句完整的话", "按顺序讲清楚", "听故事回答问题", "介绍我喜欢的东西"],
-    "数量与空间": ["点一点：5以内数量", "认识圆形和方形", "上下左右在哪里", "发现重复的规律"],
-    "科学探索": ["什么东西会长大", "植物需要什么", "天气观察日记", "会浮还是会沉"],
-    "健康习惯": ["吃东西前先洗手", "保护牙齿的方法", "安全过马路", "运动后补充水分"],
-    "社会认知": ["不小心时说对不起", "轮流玩更开心", "认识自己的情绪", "一起完成小任务"],
-    "艺术创造": ["黄色和蓝色的魔法", "听节奏拍一拍", "用形状拼小动物", "画出快乐的一天"],
-    "英语兴趣": ["A a 和 apple", "B b 和 ball", "C c 和 cat", "唱一首字母歌"],
-    "英语": ["I like... 我喜欢", "This is... 这是什么", "我的家庭成员", "读懂一段小短文"],
-    "语文": ["春天里的好词语", "读懂一句完整的话", "看图写两句话", "故事人物做了什么"],
-    "数学": ["积木还剩多少块", "用图画理解应用题", "认识常见图形", "发现数列规律"],
-    "科学": ["植物怎样吸收水", "光和影子的变化", "声音是怎样产生的", "记录一次小实验"],
-    "阅读与表达": ["从句子里找线索", "概括故事的主要内容", "说清楚自己的观点", "写一段观察记录"],
-    "综合素养": ["先倾听再表达", "安排我的学习时间", "生活中的分类", "合作解决一个问题"],
-  };
-  let lessons = lessonNames[course.name] ?? ["第一课：认识新知识", "第二课：动手练一练", "第三课：生活中找一找", "第四课：闯关复习"];
-  if (course.name === "英语兴趣" && grade.id === "G1") lessons = ["A a 和 apple", "B b 和 ball", "C c 和 cat", "D d 和 dog"];
-  if (course.name === "英语兴趣" && grade.id === "G2") lessons = ["A a 和 apple", "早上好 Good morning", "礼貌表达 Thank you", "介绍自己的名字"];
-  if (course.name === "英语兴趣" && grade.id === "G3") lessons = ["B b 和 ball", "生活中的颜色词", "物品在哪里", "数字和数量表达"];
-  if (course.name === "英语兴趣" && grade.id === "G4") lessons = ["B b 和 ball", "用 can 表达能力", "询问和回答喜好", "介绍我的家庭"];
-  if (course.name === "英语" && grade.id === "G5") lessons = ["一般现在时与日常作息", "第三人称单数变化", "读懂校园活动对话", "写出我的一天"];
-  if (course.name === "英语" && grade.id === "G6") lessons = ["现在正在发生什么", "一般现在时与现在进行时", "听懂方向和地点", "阅读一封简短邮件"];
-  if (course.name === "英语" && grade.id === "G7") lessons = ["用过去时讲一次旅行", "规则与不规则动词", "比较人物和事物", "从短文中提取关键信息"];
-  if (course.name === "英语" && grade.id === "G8") lessons = ["整合信息并作出推断", "计划、变化与原因", "在语境中判断时态", "阅读短文并概括主旨"];
-  if (course.name === "数学" && grade.id === "G8") lessons = ["百分数与折扣综合应用", "比与比例解决问题", "圆的周长和面积", "用方程表示数量关系"];
-  if (course.name === "语文" && grade.id === "G8") lessons = ["判断观点与支撑依据", "概括段落和文章主旨", "品味关键语句的表达效果", "根据材料表达完整观点"];
-  if (course.name === "健康习惯" && Number(grade.id.slice(1)) >= 3) lessons = ["今天吃什么更健康", "眼睛、姿势和屏幕", "运动前中后怎么做", "睡眠与情绪小管家"];
-  const availableLessons = Math.min(getCourseQuestions(course.name, grade.id).length, lessons.length);
+  const units = useMemo(() => getCourseCatalog(grade.id, course.name), [course.name, grade.id]);
+  const availableUnits = Math.min(getCourseQuestions(course.name, grade.id).length, units.length);
 
   return <div className="course-detail">
     <button className="course-back" onClick={onBack} type="button">← 返回课程中心</button>
-    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 共{course.units}课</p></div><div className="course-hero-actions"><button onClick={() => onStart(0)} type="button">开始第1课 →</button><button className="ai-course-button" onClick={onSmartStart} disabled={aiLoading} type="button">{aiLoading ? "正在出题…" : "✨ AI智能出题"}</button></div></header>
-    <div className="course-detail-summary"><div><strong>{course.progress}%</strong><span>当前进度</span></div><div><strong>约8分钟</strong><span>每课时长</span></div><div><strong>核心题库 + AI智能生成</strong><span>内容来源</span></div></div>
-    <section className="unit-panel"><div className="section-heading compact"><div><span className="section-kicker">循序渐进，不用一次学完</span><h2>第一单元</h2></div><span className="task-count">{availableLessons} / {lessons.length} 开放</span></div><div className="unit-list">{lessons.map((lesson, index) => { const available = index < availableLessons; return <article className={available ? "unit-row current" : "unit-row locked"} key={lesson}><span>{available ? "🌟" : "🌱"}</span><div><small>第 {index + 1} 课</small><strong>{lesson}</strong><p>{available ? "互动练习 + AI小词典 + 句型解析" : "完成本单元题库后按顺序开放"}</p></div>{available ? <button onClick={() => onStart(index)} type="button">进入第{index + 1}课</button> : <em>即将开放</em>}</article>; })}</div></section>
+    <header className={`course-detail-hero ${course.color}`}><span>{course.icon}</span><div><small>{grade.id} · {grade.school}</small><h1>{course.name}</h1><p>{course.description} · 规划{course.units}课</p></div><div className="course-hero-actions"><button onClick={() => onStart(0)} type="button">开始第1单元 →</button><button className="ai-course-button" onClick={onSmartStart} disabled={aiLoading} type="button">{aiLoading ? "正在出题…" : "✨ AI智能出题"}</button></div></header>
+    <div className="course-detail-summary"><div><strong>{units.length}个</strong><span>本级核心单元</span></div><div><strong>{units.reduce((sum, unit) => sum + unit.knowledgePoints.length, 0)}个</strong><span>核心知识点</span></div><div><strong>核心题库 + 智能生成</strong><span>练习内容来源</span></div></div>
+    <section className="unit-panel knowledge-map-panel"><div className="section-heading compact"><div><span className="section-kicker">从知识点出发，看清每一步学什么</span><h2>本级课程地图</h2></div><span className="task-count">{availableUnits} / {units.length} 单元可练</span></div><div className="knowledge-map" role="list" aria-label={`${grade.id}${course.name}知识点地图`}>{units.map((unit, index) => { const available = index < availableUnits; return <article className={available ? "knowledge-unit available" : "knowledge-unit preparing"} key={unit.id} role="listitem"><div className="map-node" aria-hidden="true"><span>{unit.icon}</span><i>{index + 1}</i></div><div className="knowledge-unit-card"><header><div><small>第 {index + 1} 单元</small><h3>{unit.title}</h3></div><em>{available ? "可以练习" : "内容准备中"}</em></header><p>{unit.description}</p><div className="knowledge-points" aria-label="核心知识点">{unit.knowledgePoints.map((point, pointIndex) => <span key={point}><i>{pointIndex + 1}</i>{point}</span>)}</div>{available ? <button onClick={() => onStart(index)} type="button">开始本单元 →</button> : <button disabled type="button">题库持续补充</button>}</div></article>; })}</div></section>
     <aside className="bank-note"><span>🧠</span><div><strong>这节课已经使用统一题库格式</strong><p>题目包含等级、学科、知识点、难度、答案和解析，以后可以直接接入智能出题与错题复习。</p></div></aside>
   </div>;
 }
 
-function TaskPanel({ completedTasks, questions, courses, onOpen, onGoCourse, standalone = false }: { completedTasks: number[]; questions: QuestionItem[]; courses: Course[]; onOpen: (index: number) => void; onGoCourse?: (courseName: string) => void; standalone?: boolean }) {
+function TaskPanel({ completedTasks, questions, courses, onOpen, onGoCourse, standalone = false, previewCount, onViewAll }: { completedTasks: number[]; questions: QuestionItem[]; courses: Course[]; onOpen: (index: number) => void; onGoCourse?: (courseName: string) => void; standalone?: boolean; previewCount?: number; onViewAll?: () => void }) {
+  const visibleQuestions = previewCount ? questions.slice(0, previewCount) : questions;
   const groups = useMemo(() => {
     const order: string[] = [];
     const bySubject: Record<string, number[]> = {};
-    questions.forEach((question, index) => {
+    visibleQuestions.forEach((question, index) => {
       if (!bySubject[question.subject]) { bySubject[question.subject] = []; order.push(question.subject); }
       bySubject[question.subject].push(index);
     });
     return order.map((subject) => ({ subject, indices: bySubject[subject] }));
-  }, [questions]);
-  return <div className={standalone ? "task-panel standalone" : "task-panel"}><div className="section-heading compact"><div><span className="section-kicker">为你精心准备的今日挑战</span><h2>今日学习路线</h2></div><span className="task-count">{completedTasks.length} / {questions.length} 完成</span></div>{groups.map((group) => { const course = courses.find((item) => item.name === group.subject); return <section className="task-group" key={group.subject}><header><strong><span className="group-course-icon" aria-hidden="true">{course?.icon ?? "📘"}</span>{group.subject}</strong><span>{course?.description ?? "今日学习内容"}</span><em>{group.indices.length}站</em>{onGoCourse && <button className="group-go-course" onClick={() => onGoCourse(group.subject)} type="button">进入课程 →</button>}</header><div className="task-list">{group.indices.map((index) => { const question = questions[index]; const done = completedTasks.includes(index); const look = getTaskLook(question); return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></section>; })}</div>;
+  }, [visibleQuestions]);
+  return <div className={`${standalone ? "task-panel standalone" : "task-panel"}${previewCount ? " task-panel-preview" : ""}`}><div className="section-heading compact"><div><span className="section-kicker">{previewCount ? "先从眼前的三小步开始" : "为你精心准备的今日挑战"}</span><h2>{previewCount ? "接下来学什么" : "今日学习路线"}</h2></div><span className="task-count">{completedTasks.length} / {questions.length} 完成</span></div>{groups.map((group) => { const course = courses.find((item) => item.name === group.subject); return <section className="task-group" key={group.subject}><header><strong><span className="group-course-icon" aria-hidden="true">{course?.icon ?? "📘"}</span>{group.subject}</strong><span>{course?.description ?? "今日学习内容"}</span><em>{group.indices.length}站</em>{onGoCourse && <button className="group-go-course" onClick={() => onGoCourse(group.subject)} type="button">进入课程 →</button>}</header><div className="task-list">{group.indices.map((index) => { const question = questions[index]; const done = completedTasks.includes(index); const look = getTaskLook(question); return <button className={done ? "task-row done" : "task-row"} key={question.id} onClick={() => onOpen(index)} type="button"><span className={`task-icon ${look.color}`}>{done ? "✓" : look.icon}</span><span><strong>{question.title}</strong><small>{done ? "完成得很棒，可以再次练习" : `${question.knowledgePoint}`}</small></span><em>{look.minutes}</em><b>{done ? "复习" : index === 0 ? "开始" : "›"}</b></button>; })}</div></section>; })}{previewCount && onViewAll && <footer className="task-preview-footer"><div><span aria-hidden="true">🚂</span><p><strong>完整路线共有 {questions.length} 站</strong><small>学习内容没有减少，按自己的节奏慢慢完成。</small></p></div><button onClick={onViewAll} type="button">查看完整路线 →</button></footer>}</div>;
 }
 
 function PageTitle({ eyebrow, title, subtitle, icon }: { eyebrow: string; title: string; subtitle: string; icon: string }) {

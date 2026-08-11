@@ -39,12 +39,6 @@ export type QuestionItem = {
   traceLetter?: string;
 };
 
-const dailyQuestions: QuestionItem[] = [
-  { id: "daily-letter-m", grade: "G1-G3", subject: "英语兴趣", knowledgePoint: "字母大小写配对", type: "single_choice", difficulty: 1, source: "local_core", title: "字母探险", eyebrow: "英语兴趣 · 大小写配对", prompt: "哪一组是大写 M 和小写 m？", visual: "M m · moon 🌙", options: ["M m", "N n", "W w"], answer: "M m", explanation: "大写 M 和小写 m 是一对。moon 的第一个字母就是 m。" },
-  { id: "daily-pattern-color", grade: "G1-G3", subject: "数学", knowledgePoint: "图形规律", type: "single_choice", difficulty: 1, source: "local_core", title: "数学小站", eyebrow: "数学 · 图形规律", prompt: "接下来应该是哪一种颜色？", visual: "🔵 🟡 🔵 🟡 ？", options: ["🔵", "🟡", "🟢"], answer: "🔵", explanation: "蓝色和黄色轮流出现，黄色后面应该是蓝色。" },
-  { id: "daily-story-seed", grade: "G1-G3", subject: "阅读", knowledgePoint: "故事信息提取", type: "single_choice", difficulty: 1, source: "local_core", title: "故事树屋", eyebrow: "阅读 · 故事理解", prompt: "小种子最后落在了哪里？", visual: "🌱 乘着风，飞过小河和山坡，最后落在森林边的草地上。", options: ["森林边的草地", "大海里", "月亮上"], answer: "森林边的草地", explanation: "题目要根据故事中明确写出的信息回答，不能只凭想象。" },
-];
-
 const preschoolQuestions: Record<string, Omit<QuestionItem, "id" | "grade" | "eyebrow">> = {
   "语言表达": { subject: "语言表达", knowledgePoint: "完整句表达", type: "single_choice", difficulty: 1, source: "local_core", title: "把话说完整", prompt: "看到小兔在浇花，哪句话说得最完整？", visual: "🐰 💧 🌷", options: ["小兔。", "浇花。", "小兔正在给花浇水。"], answer: "小兔正在给花浇水。", explanation: "完整的话要说清楚“谁、在做什么”。" },
   "数量与空间": { subject: "数量与空间", knowledgePoint: "5以内点数", type: "single_choice", difficulty: 1, source: "local_core", title: "数量小侦探", prompt: "草地上一共有几只蝴蝶？", visual: "🦋  🦋  🦋", options: ["2只", "3只", "4只"], answer: "3只", explanation: "按顺序点数：1、2、3，一共有3只蝴蝶。" },
@@ -608,19 +602,6 @@ export const subjectDailyExtras: Record<string, Record<string, Array<Omit<Questi
     ],
   },
 };
-
-export function getDailyQuestion(index: number, grade = "G3") {
-  if (!/^G[1-8]$/.test(grade)) return dailyQuestions[index] ?? dailyQuestions[0];
-  const preschool = grade === "G1" || grade === "G2";
-  const courseNames = preschool ? ["语言表达", "数量与空间", "英语兴趣"] : ["语文", "数学", ["G3", "G4"].includes(grade) ? "英语兴趣" : "英语"];
-  const courseName = courseNames[index] ?? courseNames[0];
-  if (index === 2) {
-    const englishQuestions = getCourseQuestions(courseName, grade);
-    const questionIndex = ["G3", "G4"].includes(grade) && englishQuestions.length > 1 ? 1 : 0;
-    return englishQuestions[questionIndex];
-  }
-  return getCourseQuestion(courseName, grade);
-}
 
 export function getCourseQuestion(courseName: string, grade: string): QuestionItem {
   const specific = gradeSpecificQuestions[`${grade}:${courseName}`] ?? (grade === "G1" || grade === "G2" ? preschoolQuestions[courseName] : primaryQuestions[courseName]);

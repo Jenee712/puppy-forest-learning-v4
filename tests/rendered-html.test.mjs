@@ -25,12 +25,13 @@ test("server-renders the V4 learning platform", async () => {
   assert.match(html, /G1/);
   assert.match(html, /G8/);
   assert.match(html, /绘本馆/);
-  assert.match(html, /14<!-- --> 个学习站/);
-  assert.match(html, /英语主线[\s\S]*?<em>8<!-- -->站<\/em>/);
-  assert.match(html, /中→EN/);
-  assert.match(html, /EN→中/);
+  assert.match(html, /32<!-- --> 个学习站/);
+  assert.match(html, /先从眼前的三小步开始/);
+  assert.match(html, /英语兴趣[\s\S]*?<em>3<!-- -->站<\/em>/);
+  assert.match(html, /完整路线共有[\s\S]*?32<!-- --> 站/);
+  assert.match(html, /跳到主要内容/);
   assert.match(html, /绘本/);
-  assert.match(html, /查看永久解锁方案/);
+  assert.match(html, /永久解锁/);
   assert.doesNotMatch(html, /DeepSeek/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
