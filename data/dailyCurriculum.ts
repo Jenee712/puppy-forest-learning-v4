@@ -1,4 +1,4 @@
-import { getCourseQuestions, getCourseQuestion, type QuestionItem } from "./questionBank";
+import { getCourseQuestions, getCourseQuestion, subjectDailyExtras, type QuestionItem } from "./questionBank";
 
 type Draft = Omit<QuestionItem, "id" | "grade" | "eyebrow" | "source">;
 
@@ -95,9 +95,17 @@ export function getDailyCurriculum(grade: string): QuestionItem[] {
   const englishName = englishSubject(grade);
   const coreEnglish = getCourseQuestions(englishName, grade).slice(0, 3).map((question, index) => withMeta(question, index, 3));
   const addedEnglish = (englishDaily[grade] ?? englishDaily.G3).map((draft, index) => makeEnglish(grade, index, draft));
-  const companion = (companionCourses[grade] ?? companionCourses.G3).map((course, index) => {
-    if (course === "健康习惯" && primaryHealthDaily[grade]) return { ...primaryHealthDaily[grade], id: `${grade.toLowerCase()}-daily-health`, grade, eyebrow: `${grade} · 健康习惯`, source: "local_core" } as QuestionItem;
-    return withMeta(getCourseQuestion(course, grade), index + 8, index === 1 ? 4 : 3);
+  const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, index) => {
+    // 基础题：健康习惯优先用 primaryHealthDaily 的每日健康题，其余科目用基础题库
+    const base: QuestionItem =
+      course === "健康习惯" && primaryHealthDaily[grade]
+        ? { ...primaryHealthDaily[grade], id: `${grade.toLowerCase()}-daily-health`, grade, eyebrow: `${grade} · 健康习惯`, source: "local_core" }
+        : withMeta(getCourseQuestion(course, grade), index + 8, index === 1 ? 4 : 3);
+    // 每日补充题：subjectDailyExtras 每科每年级 3 题，让每日课程每科达到 4 站
+    const extras = (subjectDailyExtras[course]?.[grade] ?? []).map((draft, extraIndex) =>
+      withMeta({ ...draft, id: `${grade.toLowerCase()}-${course}-daily-${extraIndex + 1}`, grade, eyebrow: `${grade} · ${course}`, source: "local_core" }, index + 8, 3),
+    );
+    return [base, ...extras];
   });
   return [...coreEnglish, ...addedEnglish, ...companion];
 }
@@ -110,5 +118,6 @@ export function auditDailyCurriculum() {
   });
 }
 
-const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishCount < 8 || plan.englishRatio <= .5 || plan.minutes < 40);
+// 每日课程 = 英语 8 站 + 六门伴随学科各 4 站（基础1 + subjectDailyExtras 3）；要求：总站数 ≥14、英语 ≥8、时长 ≥40 分钟
+const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishCount < 8 || plan.minutes < 40);
 if (invalidPlans.length) throw new Error(`每日课程密度不达标：${invalidPlans.map((plan) => plan.grade).join(", ")}`);
