@@ -64,6 +64,14 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
   if (String(item.explanation).trim().length < 10) return null;
   if (String(item.prompt).trim().length < minimumPromptLength[input.grade]) return null;
   if (["G4", "G5", "G6", "G7", "G8"].includes(input.grade) && upperGradeBasics.test(`${item.title} ${item.prompt}`)) return null;
+  if (!item.optionExplanations || typeof item.optionExplanations !== "object" || Array.isArray(item.optionExplanations)) return null;
+  const rawOptionExplanations = item.optionExplanations as Record<string, unknown>;
+  const optionExplanations: Record<string, string> = {};
+  for (const option of options) {
+    const detail = rawOptionExplanations[option];
+    if (typeof detail !== "string" || detail.trim().length < 8) return null;
+    optionExplanations[option] = detail.trim();
+  }
   const isEnglish = input.subject.includes("英语");
   let vocabulary: QuestionItem["vocabulary"];
   let grammarTip: QuestionItem["grammarTip"];
@@ -87,7 +95,7 @@ export function validateGeneratedQuestion(value: unknown, input: GenerateQuestio
       grammarTip = { title: String(tip.title).trim(), pattern: String(tip.pattern).trim(), explanation: String(tip.explanation).trim() };
     }
   }
-  return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual, options, answer, explanation: String(item.explanation).trim(), vocabulary, grammarTip };
+  return { id: `ai-${input.grade.toLocaleLowerCase()}-${Date.now()}`, grade: input.grade, subject: input.subject, knowledgePoint: input.knowledgePoint, type: "single_choice", difficulty: input.difficulty, source: "ai_generated", title: String(item.title).trim(), eyebrow: `${input.grade} · ${input.subject} · 智能加练`, prompt: String(item.prompt).trim(), visual, options, answer, explanation: String(item.explanation).trim(), optionExplanations, vocabulary, grammarTip };
 }
 
 function visualRevealsAnswer(visual: string, answer: string) {
@@ -111,7 +119,7 @@ function visualRevealsAnswer(visual: string, answer: string) {
 
 function buildPrompts(input: GenerateQuestionInput) {
   const englishSchema = input.subject.includes("英语") ? `英语题还必须包含："vocabulary"数组，列出1至3个真正影响理解的重点单词或词组，每项格式为{"term":"英文词或词组","phonetic":"音标","tag":"词性或词组类型","meaning":"简体中文释义","expansion":"构词、搭配或辨析","example":"新的英文例句","exampleMeaning":"例句的简体中文翻译"}。如题目涉及语法、句型或阅读策略，再增加"grammarTip":{"title":"语法或阅读策略名称","pattern":"核心结构","explanation":"简体中文说明"}。词汇解析必须与本题直接相关，例句不能照抄题干。` : "";
-  const system = `你是中国儿童分级学习平台的审题老师。目标是在不超出当前年龄课程边界的前提下，把旧版偏识记的练习提升约50%的认知含量：增加相关线索、条件比较、因果顺序或推理步骤，而不是单纯加长文字。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清推理过程"}。${englishSchema}要求：难度必须相对于本等级判断；G3及以上至少使用两条有关联的信息，G5及以上通常需要两步推理或比较，G7至G8优先考查证据、观点、多约束或非连续文本；答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析必须说明使用了哪些线索和步骤，不能只重复答案。`;
+  const system = `你是中国儿童分级学习平台的审题老师。目标是在不超出当前年龄课程边界的前提下，把旧版偏识记的练习提升约50%的认知含量：增加相关线索、条件比较、因果顺序或推理步骤，而不是单纯加长文字。只生成原创、无争议、适龄、安全的单项选择题。必须输出json对象，不要Markdown。基础JSON格式：{"title":"题目名称","prompt":"题干","visual":"简短的文字或emoji提示","options":["选项1","选项2","选项3"],"answer":"与某个选项完全一致的答案","explanation":"用简体中文讲清总体推理过程","optionExplanations":{"选项1":"为什么正确或错误","选项2":"为什么正确或错误","选项3":"为什么正确或错误"}}。optionExplanations必须使用与options完全相同的选项文字作为键，逐项说明实际含义、使用的线索以及为什么符合或不符合，不能只写“错误”“不符合题意”。${englishSchema}要求：难度必须相对于本等级判断；G3及以上至少使用两条有关联的信息，G5及以上通常需要两步推理或比较，G7至G8优先考查证据、观点、多约束或非连续文本；答案唯一；三个选项互不重复且处于同一逻辑层级；错误选项应是合理但可排除的干扰项，不能用明显无关内容凑数；visual只能呈现作答所需的情境或线索，不得复述答案、结论或任何完整选项；不得出现繁体字、成人内容、品牌营销、政治或医疗建议；解析必须说明使用了哪些线索和步骤，不能只重复答案。`;
   const avoided = input.avoidTitles?.length ? `不要生成与这些题目相似的内容：${input.avoidTitles.join("、")}。` : "";
   return { system, user: `请生成1道${input.subject}题。等级：${input.grade}（${gradeProfiles[input.grade]}）；知识点：${input.knowledgePoint}；难度：${input.difficulty}/3。${avoided}` };
 }

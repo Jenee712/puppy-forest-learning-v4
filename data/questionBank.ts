@@ -13,6 +13,7 @@ export type QuestionItem = {
   options: string[];
   answer: string;
   explanation: string;
+  optionExplanations?: Record<string, string>;
   vocabulary?: Array<{
     term: string;
     phonetic?: string;
@@ -110,7 +111,7 @@ const englishExtensions: Record<string, Array<Omit<QuestionItem, "id" | "grade" 
   ],
   G2: [
     { subject: "英语兴趣", knowledgePoint: "日常问候", type: "single_choice", difficulty: 1, source: "local_core", title: "Hello, my friend", prompt: "早上见到老师，可以怎么说？", visual: "🌞 👩‍🏫", options: ["Good morning!", "Good night!", "Goodbye!"], answer: "Good morning!", explanation: "早上问候使用 Good morning。", vocabulary: [{ term: "Good morning", phonetic: "/ɡʊd ˈmɔːnɪŋ/", tag: "问候语", meaning: "早上好", expansion: "morning 指从早晨到中午前。", example: "Good morning, Ms Li!", exampleMeaning: "李老师，早上好！" }] },
-    { subject: "英语兴趣", knowledgePoint: "表达感谢", type: "single_choice", difficulty: 1, source: "local_core", title: "Thank you", prompt: "朋友把彩笔借给你，你应该说什么？", visual: "🖍️ 🤝", options: ["Thank you.", "Sit down.", "I'm five."], answer: "Thank you.", explanation: "接受别人帮助后，可以用 Thank you 表达感谢。", vocabulary: [{ term: "Thank you", phonetic: "/ˈθæŋk juː/", tag: "礼貌用语", meaning: "谢谢你", expansion: "回答感谢时可以说 You're welcome。", example: "Thank you for your help.", exampleMeaning: "谢谢你的帮助。" }] },
+    { subject: "英语兴趣", knowledgePoint: "表达感谢", type: "single_choice", difficulty: 1, source: "local_core", title: "Thank you", prompt: "朋友把彩笔借给你，你应该说什么？", visual: "🖍️ 🤝", options: ["Thank you.", "Sit down.", "I'm five."], answer: "Thank you.", explanation: "接受别人帮助后，可以用 Thank you 表达感谢。", optionExplanations: { "Thank you.": "意思是“谢谢你”，符合接受朋友帮助后表达感谢的情境。", "Sit down.": "意思是“坐下”，是一条动作指令，不能用来感谢借彩笔的朋友。", "I'm five.": "意思是“我五岁”，是在介绍年龄，与借彩笔和表达感谢无关。" }, vocabulary: [{ term: "Thank you", phonetic: "/ˈθæŋk juː/", tag: "礼貌用语", meaning: "谢谢你", expansion: "回答感谢时可以说 You're welcome。", example: "Thank you for your help.", exampleMeaning: "谢谢你的帮助。" }] },
   ],
   G3: [
     { subject: "英语兴趣", knowledgePoint: "颜色词", type: "single_choice", difficulty: 1, source: "local_core", title: "Colours around us", prompt: "The sky is usually ____ on a sunny day.", visual: "☀️ ☁️", options: ["blue", "green", "black"], answer: "blue", explanation: "晴朗的天空通常是蓝色的。", vocabulary: [{ term: "blue", phonetic: "/bluː/", tag: "颜色词", meaning: "蓝色；蓝色的", expansion: "颜色词可以放在名词前，如 a blue bag。", example: "I have a blue kite.", exampleMeaning: "我有一只蓝色的风筝。" }] },
