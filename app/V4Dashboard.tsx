@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getCourseQuestions, type QuestionItem } from "../data/questionBank";
-import { getDailyCurriculum } from "../data/dailyCurriculum";
+import { getDailyCurriculum, STUDY_PROGRAM_DAYS } from "../data/dailyCurriculum";
 import { getCourseCatalog } from "../data/courseCatalog";
 import { TtsButton } from "./components/TtsButton";
 import { PictureBookLibrary } from "./components/PictureBookLibrary";
@@ -112,13 +112,16 @@ function getCourses(grade: string): Course[] {
 export function V4Dashboard() {
   const [activeNav, setActiveNav] = useState("首页");
   const [selectedGrade, setSelectedGrade] = useState("G3");
+  const [selectedDay, setSelectedDay] = useState(1);
   const [showPlans, setShowPlans] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState<QuestionItem | null>(null);
   const [activeTaskIndex, setActiveTaskIndex] = useState<number | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answerState, setAnswerState] = useState<"correct" | "wrong" | null>(null);
-  const [completedTasks, setCompletedTasks] = useState<number[]>([]);
+  const [dailyProgress, setDailyProgress] = useState<Record<string, number[]>>(() => {
+    try { return JSON.parse(window.localStorage.getItem("puppy-forest-90-day-progress") ?? "{}"); } catch { return {}; }
+  });
   const [wrongRecords, setWrongRecords] = useState<WrongRecord[]>([]);
   const [recordsReady, setRecordsReady] = useState(false);
   const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
@@ -141,12 +144,25 @@ export function V4Dashboard() {
     try {
       const savedGrade = window.localStorage.getItem("puppy-forest-grade");
       if (grades.some((grade) => grade.id === savedGrade)) setSelectedGrade(savedGrade as string);
+      const savedDay = Number(window.localStorage.getItem("puppy-forest-study-day") ?? 1);
+      if (Number.isFinite(savedDay)) setSelectedDay(Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(savedDay))));
     } catch { /* 当前设备无法读取时使用默认等级 */ }
   }, []);
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
-  const dailyQuestions = useMemo(() => getDailyCurriculum(selectedGrade), [selectedGrade]);
+  const progressKey = `${selectedGrade}-day-${selectedDay}`;
+  const completedTasks = dailyProgress[progressKey] ?? [];
+  const updateCompletedTasks = (updater: number[] | ((current: number[]) => number[])) => {
+    setDailyProgress((progress) => {
+      const current = progress[progressKey] ?? [];
+      const next = typeof updater === "function" ? updater(current) : updater;
+      const updated = { ...progress, [progressKey]: next };
+      try { window.localStorage.setItem("puppy-forest-90-day-progress", JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+  };
+  const dailyQuestions = useMemo(() => getDailyCurriculum(selectedGrade, selectedDay), [selectedDay, selectedGrade]);
   const dailyMinutes = useMemo(() => dailyQuestions.reduce((sum, question) => sum + (question.estimatedMinutes ?? 3), 0), [dailyQuestions]);
   const dailyCountByCourse = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -246,13 +262,13 @@ export function V4Dashboard() {
 
   const continueWithSmartPractice = () => {
     if (!activeQuestion) return;
-    if (activeTaskIndex !== null) setCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
+    if (activeTaskIndex !== null) updateCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
     void generateSmartQuestion(activeQuestion, "AI已生成一道同知识点进阶题");
   };
 
   const finishTask = () => {
     if (activeTaskIndex !== null) {
-      setCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
+      updateCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
     }
     // 完成一题 +2 金币
     const newCoins = coinBalance + 2;
@@ -291,9 +307,16 @@ export function V4Dashboard() {
 
   const changeGrade = (grade: string) => {
     setSelectedGrade(grade);
-    setCompletedTasks([]);
     setSelectedCourse(null);
     try { window.localStorage.setItem("puppy-forest-grade", grade); } catch { /* ignore */ }
+  };
+
+  const changeStudyDay = (day: number) => {
+    const nextDay = Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(day)));
+    setSelectedDay(nextDay);
+    setActiveQuestion(null);
+    setActiveTaskIndex(null);
+    try { window.localStorage.setItem("puppy-forest-study-day", String(nextDay)); } catch { /* ignore */ }
   };
 
   return (
@@ -339,7 +362,7 @@ export function V4Dashboard() {
 
           {activeNav === "今日学习" && (
             <section className="page-surface today-page">
-              <PageTitle eyebrow="系统已经为孩子准备好了" title="今日学习路线" subtitle={`${currentGrade.id} · ${currentGrade.school} · ${dailyQuestions.length}站 · 预计${dailyMinutes}分钟`} icon="☀️" />
+              <PageTitle eyebrow={`90天成长计划 · 第${selectedDay}天`} title="今日学习路线" subtitle={`${currentGrade.id} · ${currentGrade.school} · ${dailyQuestions.length}站 · 预计${dailyMinutes}分钟`} icon="☀️" />
               <div className="learning-density"><span>🇬🇧 英语 {englishTaskCount} 站</span><strong>{Math.round(englishTaskCount / dailyQuestions.length * 100)}%</strong><p>英语为主线，包含听读、双向翻译、词句训练与分级阅读。</p></div>
               <div className="today-summary"><div><strong>{completedTasks.length}<small>/ {dailyQuestions.length}</small></strong><span>今日完成</span></div><div><strong>{coinBalance}</strong><span>森林金币</span></div><div><strong>{dailyMinutes}</strong><span>预计分钟</span></div></div>
               <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} standalone />
@@ -367,7 +390,7 @@ export function V4Dashboard() {
           {activeNav === "绘本馆" && <PictureBookLibrary grade={selectedGrade} />}
           {activeNav === "贴纸册" && <StickerShop coins={coinBalance} onSpend={spendCoins} />}
 
-          {activeNav === "学习计划" && <StudyPlan questions={dailyQuestions} completed={completedTasks} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
+          {activeNav === "学习计划" && <StudyPlan day={selectedDay} questions={dailyQuestions} completed={completedTasks} progress={dailyProgress} grade={selectedGrade} onDayChange={changeStudyDay} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
 
           {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
@@ -383,7 +406,7 @@ export function V4Dashboard() {
   );
 }
 
-function StudyPlan({ questions, completed, onOpenTask, onGoToday }: { questions: QuestionItem[]; completed: number[]; onOpenTask: (index: number) => void; onGoToday: () => void }) {
+function StudyPlan({ day, questions, completed, progress, grade, onDayChange, onOpenTask, onGoToday }: { day: number; questions: QuestionItem[]; completed: number[]; progress: Record<string, number[]>; grade: string; onDayChange: (day: number) => void; onOpenTask: (index: number) => void; onGoToday: () => void }) {
   const groups = useMemo(() => {
     const map = new Map<string, { q: QuestionItem; idx: number }[]>();
     questions.forEach((q, idx) => {
@@ -394,15 +417,28 @@ function StudyPlan({ questions, completed, onOpenTask, onGoToday }: { questions:
     return [...map.entries()];
   }, [questions]);
   const totalMinutes = questions.reduce((sum, q) => sum + (q.estimatedMinutes ?? 3), 0);
+  const phase = day <= 30 ? "基础扎根" : day <= 60 ? "能力生长" : "综合进阶";
+  const startedDays = Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).filter((studyDay) => (progress[`${grade}-day-${studyDay}`]?.length ?? 0) > 0).length;
 
   return (
     <section className="page-surface study-plan-page">
-      <PageTitle eyebrow="为孩子安排好的每日节奏" title="学习计划" subtitle={`今日 ${questions.length} 站 · 预计 ${totalMinutes} 分钟 · 按科目分组循序渐进`} icon="🗺️" />
+      <PageTitle eyebrow="每天独立进度 · 学完自动保存" title="90天学习计划" subtitle={`当前第${day}天 · ${phase} · ${questions.length}站 · 预计${totalMinutes}分钟`} icon="🗺️" />
       <div className="today-summary">
-        <div><strong>{completed.length}<small>/ {questions.length}</small></strong><span>今日完成</span></div>
-        <div><strong>{groups.length}</strong><span>今日科目</span></div>
-        <div><strong>{totalMinutes}</strong><span>预计分钟</span></div>
+        <div><strong>{day}<small>/ {STUDY_PROGRAM_DAYS}</small></strong><span>当前学习日</span></div>
+        <div><strong>{startedDays}</strong><span>已有学习记录</span></div>
+        <div><strong>{completed.length}<small>/ {questions.length}</small></strong><span>本日完成</span></div>
       </div>
+      <section className="study-calendar" aria-labelledby="study-calendar-title">
+        <header><div><small>三阶段螺旋学习</small><h2 id="study-calendar-title">选择第几天</h2></div><div className="calendar-legend"><span><i className="current" />当前</span><span><i className="started" />有记录</span></div></header>
+        <div className="phase-strip"><span className={day <= 30 ? "active" : ""}>🌱 1–30天 基础扎根</span><span className={day > 30 && day <= 60 ? "active" : ""}>🌿 31–60天 能力生长</span><span className={day > 60 ? "active" : ""}>🌳 61–90天 综合进阶</span></div>
+        <div className="calendar-days" role="list" aria-label="90天学习日历">
+          {Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).map((studyDay) => {
+            const done = progress[`${grade}-day-${studyDay}`]?.length ?? 0;
+            const selected = studyDay === day;
+            return <button className={`${selected ? "selected " : ""}${done > 0 ? "started" : ""}`} key={studyDay} onClick={() => onDayChange(studyDay)} aria-pressed={selected} type="button"><strong>{studyDay}</strong>{done > 0 && <small>{done}站</small>}</button>;
+          })}
+        </div>
+      </section>
       <div className="plan-subject-list">
         {groups.map(([subject, items]) => {
           const doneCount = items.filter(({ idx }) => completed.includes(idx)).length;
@@ -420,7 +456,7 @@ function StudyPlan({ questions, completed, onOpenTask, onGoToday }: { questions:
           );
         })}
       </div>
-      <div className="gentle-note"><span>🌿</span><div><strong>按节奏慢慢来</strong><p>每天完成今日计划即可，进度会保存在本设备。点任意任务就能开始学习。</p></div><button className="plan-go-today" onClick={onGoToday} type="button">前往今日学习 →</button></div>
+      <div className="gentle-note"><span>🌿</span><div><strong>正在查看第{day}天</strong><p>每一天的完成记录分别保存。知识点会循环出现，但练习顺序会变化，帮助孩子间隔复习。</p></div><button className="plan-go-today" onClick={onGoToday} type="button">学习第{day}天 →</button></div>
     </section>
   );
 }

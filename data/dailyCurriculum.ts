@@ -4,6 +4,34 @@ type Draft = Omit<QuestionItem, "id" | "grade" | "eyebrow" | "source">;
 
 const englishSubject = (grade: string) => ["G1", "G2", "G3", "G4"].includes(grade) ? "英语兴趣" : "英语";
 
+export const STUDY_PROGRAM_DAYS = 90;
+
+function normalizeStudyDay(day: number) {
+  return Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(day) || 1));
+}
+
+function arrangeForStudyDay(items: QuestionItem[], day: number) {
+  const studyDay = normalizeStudyDay(day);
+  const subjectOrder: string[] = [];
+  const bySubject = new Map<string, QuestionItem[]>();
+
+  items.forEach((item) => {
+    if (!bySubject.has(item.subject)) subjectOrder.push(item.subject);
+    bySubject.set(item.subject, [...(bySubject.get(item.subject) ?? []), item]);
+  });
+
+  return subjectOrder.flatMap((subject) => {
+    const subjectItems = bySubject.get(subject) ?? [];
+    const offset = subjectItems.length ? (studyDay - 1) % subjectItems.length : 0;
+    const arranged = [...subjectItems.slice(offset), ...subjectItems.slice(0, offset)];
+    return arranged.map((item) => ({
+      ...item,
+      id: `${item.id}-day-${studyDay}`,
+      eyebrow: `${item.grade} · 第${studyDay}天 · ${subject}`,
+    }));
+  });
+}
+
 function makeEnglish(grade: string, index: number, draft: Draft): QuestionItem {
   return { ...draft, id: `${grade.toLowerCase()}-daily-english-${index + 1}`, grade, eyebrow: `${grade} · 英语学习站`, source: "local_core" };
 }
@@ -91,7 +119,7 @@ function withMeta(question: QuestionItem, index: number, minutes = 3): QuestionI
   return { ...question, id: `${question.id}-daily-${index + 1}`, activityKind: question.activityKind ?? "practice", estimatedMinutes: question.estimatedMinutes ?? minutes };
 }
 
-export function getDailyCurriculum(grade: string): QuestionItem[] {
+export function getDailyCurriculum(grade: string, day = 1): QuestionItem[] {
   const englishName = englishSubject(grade);
   const coreEnglish = getCourseQuestions(englishName, grade).slice(0, 3).map((question, index) => withMeta(question, index, 3));
   const addedEnglish = (englishDaily[grade] ?? englishDaily.G3).map((draft, index) => makeEnglish(grade, index, draft));
@@ -107,7 +135,7 @@ export function getDailyCurriculum(grade: string): QuestionItem[] {
     );
     return [base, ...extras];
   });
-  return [...coreEnglish, ...addedEnglish, ...companion];
+  return arrangeForStudyDay([...coreEnglish, ...addedEnglish, ...companion], day);
 }
 
 export function auditDailyCurriculum() {
@@ -116,6 +144,15 @@ export function auditDailyCurriculum() {
     const englishCount = items.filter((item) => item.subject.includes("英语")).length;
     return { grade, total: items.length, englishCount, englishRatio: englishCount / items.length, minutes: items.reduce((sum, item) => sum + (item.estimatedMinutes ?? 3), 0) };
   });
+}
+
+export function auditStudyProgram() {
+  return Object.keys(englishDaily).flatMap((grade) => Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => {
+    const day = index + 1;
+    const items = getDailyCurriculum(grade, day);
+    const ids = new Set(items.map((item) => item.id));
+    return { grade, day, total: items.length, uniqueIds: ids.size, taggedForDay: items.every((item) => item.id.endsWith(`-day-${day}`)) };
+  }));
 }
 
 const upperGradeRegression = /声母|韵母|孤立拼音|字母大小写|声音与字母|字母音|首音找单词|I can do it|Do you like apples/i;
@@ -135,5 +172,7 @@ export function auditGradeDifficulty() {
 // 每日课程 = 英语 8 站 + 六门伴随学科各 4 站（基础1 + subjectDailyExtras 3）；要求：总站数 ≥14、英语 ≥8、时长 ≥40 分钟
 const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishCount < 8 || plan.minutes < 40);
 if (invalidPlans.length) throw new Error(`每日课程密度不达标：${invalidPlans.map((plan) => plan.grade).join(", ")}`);
+const invalidStudyDays = auditStudyProgram().filter((plan) => plan.total < 14 || plan.uniqueIds !== plan.total || !plan.taggedForDay);
+if (invalidStudyDays.length) throw new Error(`90天排课异常：${invalidStudyDays.slice(0, 5).map((plan) => `${plan.grade}第${plan.day}天`).join("、")}`);
 const misalignedGrades = auditGradeDifficulty().filter((item) => item.averageDifficulty < item.floor || item.regressions.length > 0);
 if (misalignedGrades.length) throw new Error(`年级难度回退：${misalignedGrades.map((item) => `${item.grade}${item.regressions.length ? `(${item.regressions.join("、")})` : ""}`).join(", ")}`);
