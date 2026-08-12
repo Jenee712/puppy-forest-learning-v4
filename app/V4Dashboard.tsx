@@ -11,6 +11,7 @@ import { PictureBookLibrary } from "./components/PictureBookLibrary";
 import StickerShop from "./components/StickerShop";
 import ForestHome from "./components/ForestHome";
 import WordTrainGame from "./components/WordTrainGame";
+import BackgroundMusic from "./components/BackgroundMusic";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
@@ -412,6 +413,7 @@ export function V4Dashboard() {
       <nav className="mobile-nav" aria-label="手机导航">
         {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🚂", "单词", "单词小火车"], ["✨", "贴纸", "贴纸册"], ["🏠", "家园", "森林家园"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
       </nav>
+      <BackgroundMusic />
     </div>
   );
 }
