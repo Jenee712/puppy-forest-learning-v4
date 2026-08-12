@@ -62,6 +62,101 @@ function makeEnglish(grade: string, index: number, draft: Draft): QuestionItem {
   return { ...easierG8Draft, difficulty: easierG8Draft.difficulty > difficultyCeiling ? difficultyCeiling : easierG8Draft.difficulty, id: `${grade.toLowerCase()}-daily-english-${index + 1}`, grade, eyebrow: `${grade} · 英语学习站`, source: "local_core" };
 }
 
+type AlphabetSeed = {
+  upper: string;
+  lower: string;
+  word: string;
+  meaning: string;
+  icon: string;
+  sound: string;
+};
+
+const alphabetSeeds: AlphabetSeed[] = [
+  { upper: "A", lower: "a", word: "apple", meaning: "苹果", icon: "🍎", sound: "/æ/" },
+  { upper: "B", lower: "b", word: "ball", meaning: "球", icon: "⚽", sound: "/b/" },
+  { upper: "C", lower: "c", word: "cat", meaning: "猫", icon: "🐱", sound: "/k/" },
+  { upper: "D", lower: "d", word: "dog", meaning: "狗", icon: "🐶", sound: "/d/" },
+  { upper: "E", lower: "e", word: "egg", meaning: "鸡蛋", icon: "🥚", sound: "/e/" },
+  { upper: "F", lower: "f", word: "fish", meaning: "鱼", icon: "🐟", sound: "/f/" },
+  { upper: "G", lower: "g", word: "goat", meaning: "山羊", icon: "🐐", sound: "/g/" },
+  { upper: "H", lower: "h", word: "hat", meaning: "帽子", icon: "🎩", sound: "/h/" },
+  { upper: "I", lower: "i", word: "ink", meaning: "墨水", icon: "🖋️", sound: "/ɪ/" },
+  { upper: "J", lower: "j", word: "juice", meaning: "果汁", icon: "🧃", sound: "/dʒ/" },
+  { upper: "K", lower: "k", word: "kite", meaning: "风筝", icon: "🪁", sound: "/k/" },
+  { upper: "L", lower: "l", word: "lion", meaning: "狮子", icon: "🦁", sound: "/l/" },
+  { upper: "M", lower: "m", word: "moon", meaning: "月亮", icon: "🌙", sound: "/m/" },
+  { upper: "N", lower: "n", word: "nest", meaning: "鸟巢", icon: "🪺", sound: "/n/" },
+  { upper: "O", lower: "o", word: "orange", meaning: "橙子", icon: "🍊", sound: "/ɒ/" },
+  { upper: "P", lower: "p", word: "panda", meaning: "熊猫", icon: "🐼", sound: "/p/" },
+  { upper: "Q", lower: "q", word: "queen", meaning: "女王", icon: "👸", sound: "/kw/" },
+  { upper: "R", lower: "r", word: "rabbit", meaning: "兔子", icon: "🐰", sound: "/r/" },
+  { upper: "S", lower: "s", word: "sun", meaning: "太阳", icon: "☀️", sound: "/s/" },
+  { upper: "T", lower: "t", word: "train", meaning: "火车", icon: "🚂", sound: "/t/" },
+  { upper: "U", lower: "u", word: "umbrella", meaning: "雨伞", icon: "☂️", sound: "/ʌ/" },
+  { upper: "V", lower: "v", word: "violin", meaning: "小提琴", icon: "🎻", sound: "/v/" },
+  { upper: "W", lower: "w", word: "whale", meaning: "鲸鱼", icon: "🐳", sound: "/w/" },
+  { upper: "X", lower: "x", word: "x-ray", meaning: "X光", icon: "🩻", sound: "/ks/" },
+  { upper: "Y", lower: "y", word: "yo-yo", meaning: "溜溜球", icon: "🪀", sound: "/j/" },
+  { upper: "Z", lower: "z", word: "zebra", meaning: "斑马", icon: "🦓", sound: "/z/" },
+];
+
+function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
+  const studyDay = normalizeStudyDay(day);
+  const letterIndex = (studyDay - 1) % alphabetSeeds.length;
+  const cycle = Math.floor((studyDay - 1) / alphabetSeeds.length) + 1;
+  const seed = alphabetSeeds[letterIndex];
+  const distractors = [alphabetSeeds[(letterIndex + 1) % 26], alphabetSeeds[(letterIndex + 2) % 26]];
+  const subject = englishSubject(grade);
+  const visual = `LETTER_ART:${seed.upper}:${seed.lower}:${seed.icon}:${seed.word}`;
+  const vocabulary = [{
+    term: seed.word,
+    tag: "启蒙词汇",
+    meaning: seed.meaning,
+    expansion: `${seed.upper} ${seed.lower} is for ${seed.word}.`,
+    example: `I see a ${seed.word}.`,
+    exampleMeaning: `我看见一个${seed.meaning}。`,
+  }];
+  const recognitionOptions = grade === "G1"
+    ? [seed.upper, distractors[0].upper, distractors[1].upper]
+    : [`${seed.upper} ${seed.lower}`, `${distractors[0].upper} ${distractors[0].lower}`, `${distractors[1].upper} ${distractors[1].lower}`];
+  const recognitionAnswer = recognitionOptions[0];
+  const wordOptions = [`${seed.icon} ${seed.word}`, `${distractors[0].icon} ${distractors[0].word}`, `${distractors[1].icon} ${distractors[1].word}`];
+  const prefix = `${grade.toLowerCase()}-alphabet-${seed.lower}`;
+  const eyebrow = `${grade} · 第${studyDay}天 · 字母乐园 · 第${cycle}轮`;
+
+  return [
+    {
+      id: `${prefix}-recognize-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母认识", type: "single_choice", difficulty: 1,
+      title: `认识字母 ${seed.upper} ${seed.lower}`,
+      prompt: grade === "G1" ? `这位卡通字母朋友是谁？` : `哪一组是字母 ${seed.upper} 的大写和小写？`,
+      visual, options: recognitionOptions, answer: recognitionAnswer,
+      explanation: `${seed.upper} 是大写，${seed.lower} 是小写，它们是同一个字母。`,
+      optionExplanations: Object.fromEntries(recognitionOptions.map((option) => [option, option === recognitionAnswer ? `${seed.upper} 和 ${seed.lower} 是正确的大小写字形。` : `这是字母 ${option}，不是今天认识的字母 ${seed.upper}。`])),
+      activityKind: "practice", estimatedMinutes: 3, vocabulary,
+    },
+    {
+      id: `${prefix}-phonics-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母拼读", type: "single_choice", difficulty: 1,
+      title: `${seed.upper} 的声音 ${seed.sound}`,
+      prompt: `听一听：${seed.upper} ${seed.lower}，${seed.sound}。哪个单词和今天的字母是好朋友？`,
+      visual, options: wordOptions, answer: wordOptions[0],
+      explanation: `${seed.word} 以字母 ${seed.upper} 的声音开头：${seed.upper} ${seed.sound} ${seed.word}。`,
+      optionExplanations: Object.fromEntries(wordOptions.map((option, index) => [option, index === 0 ? `${seed.word} 以字母 ${seed.upper} 开头。` : `${distractors[index - 1].word} 以字母 ${distractors[index - 1].upper} 开头。`])),
+      activityKind: "phonics", estimatedMinutes: 4, vocabulary,
+    },
+    {
+      id: `${prefix}-trace-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母描写", type: "fill_blank", difficulty: 1,
+      title: `用手描写 ${seed.upper} ${seed.lower}`,
+      prompt: `先描大写 ${seed.upper}，再描小写 ${seed.lower}。`,
+      visual, options: [], answer: "done",
+      explanation: `你完成了 ${seed.upper} 和 ${seed.lower} 的描写，记住大写和小写的不同形状。`,
+      activityKind: "trace", traceLetter: `${seed.upper} ${seed.lower}`, estimatedMinutes: 5, vocabulary,
+    },
+  ];
+}
+
 const englishDaily: Record<string, Draft[]> = {
   G1: [
     { subject: "英语兴趣", knowledgePoint: "字母描写", type: "fill_blank", difficulty: 1, title: "描一描字母 A", prompt: "跟着浅色字母描写大写 A，再描写小写 a。", visual: "A a", options: [], answer: "done", explanation: "A 和 a 是同一个字母的大小写。写字母时要从正确的位置起笔。", activityKind: "trace", traceLetter: "A a", estimatedMinutes: 4, vocabulary: [{ term: "A a", tag: "字母", meaning: "字母A的大小写", expansion: "A is for apple.", example: "A is for apple.", exampleMeaning: "A代表apple（苹果）。" }] },
@@ -148,7 +243,9 @@ function withMeta(question: QuestionItem, index: number, minutes = 3): QuestionI
 export function getDailyCurriculum(grade: string, day = 1): QuestionItem[] {
   const englishName = englishSubject(grade);
   const coreEnglish = getCourseQuestions(englishName, grade).slice(0, 3).map((question, index) => withMeta(question, index, 3));
-  const addedEnglish = (englishDaily[grade] ?? englishDaily.G3).map((draft, index) => makeEnglish(grade, index, draft));
+  const addedEnglish = (englishDaily[grade] ?? englishDaily.G3)
+    .filter((draft) => !(["G1", "G2"].includes(grade) && (draft.activityKind === "trace" || draft.activityKind === "phonics")))
+    .map((draft, index) => makeEnglish(grade, index, draft));
   const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, index) => {
     // 基础题：健康习惯优先用 primaryHealthDaily 的每日健康题，其余科目用基础题库
     const base: QuestionItem =
@@ -161,7 +258,8 @@ export function getDailyCurriculum(grade: string, day = 1): QuestionItem[] {
     );
     return [base, ...extras];
   });
-  return arrangeForStudyDay([...coreEnglish, ...addedEnglish, ...companion], day);
+  const dailyBase = arrangeForStudyDay([...coreEnglish, ...addedEnglish, ...companion], day);
+  return ["G1", "G2"].includes(grade) ? [...makeAlphabetJourney(grade, day), ...dailyBase] : dailyBase;
 }
 
 export function auditDailyCurriculum() {
