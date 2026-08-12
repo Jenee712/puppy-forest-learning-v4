@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type Area = "indoor" | "garden";
 type HomeItem = { id: string; name: string; asset: string; price: number; area: Area; note: string };
+type PlacedItem = { id: string; x: number; y: number };
+type PlacedState = Record<Area, PlacedItem[]>;
 
 const INDOOR_NAMES = [
   "森林书桌", "圆圆阅读椅", "云朵沙发", "橡木书架", "拱门绘本柜", "蘑菇台灯",
@@ -51,59 +53,114 @@ function readList(key: string): string[] {
   try { return JSON.parse(window.localStorage.getItem(key) ?? "[]") as string[]; } catch { return []; }
 }
 
+function readPlaced(): PlacedState {
+  const empty: PlacedState = { indoor: [], garden: [] };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(PLACED_KEY) ?? "null") as Record<Area, Array<string | null | PlacedItem>> | null;
+    if (!saved?.indoor || !saved?.garden) return empty;
+    const normalize = (entries: Array<string | null | PlacedItem>, area: Area) => entries.flatMap((entry, index) => {
+      const id = typeof entry === "string" ? entry : entry?.id;
+      if (!id || !ITEMS.some((item) => item.id === id && item.area === area)) return [];
+      if (typeof entry === "object" && entry && typeof entry.x === "number" && typeof entry.y === "number") return [entry];
+      return [{ id, x: 16 + (index % 3) * 25, y: 64 + Math.floor(index / 3) * 20 }];
+    });
+    return { indoor: normalize(saved.indoor, "indoor"), garden: normalize(saved.garden, "garden") };
+  } catch { return empty; }
+}
+
 export default function ForestHome({ coins, onSpend }: { coins: number; onSpend: (price: number) => void }) {
   const [area, setArea] = useState<Area>("indoor");
   const [owned, setOwned] = useState<string[]>([]);
-  const [placed, setPlaced] = useState<Record<Area, Array<string | null>>>({ indoor: Array(6).fill(null), garden: Array(6).fill(null) });
+  const [placed, setPlaced] = useState<PlacedState>({ indoor: [], garden: [] });
   const [pet, setPet] = useState("dog");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [notice, setNotice] = useState("完成学习赚金币，把喜欢的东西带回家吧！");
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const placedRef = useRef<PlacedState>({ indoor: [], garden: [] });
+  const dragRef = useRef<string | null>(null);
 
   useEffect(() => {
     setOwned(readList(OWNED_KEY));
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(PLACED_KEY) ?? "null") as Record<Area, Array<string | null>> | null;
-      if (saved?.indoor && saved?.garden) setPlaced(saved);
-      setPet(window.localStorage.getItem(PET_KEY) ?? "dog");
-    } catch { /* 使用默认家园 */ }
+    const saved = readPlaced();
+    placedRef.current = saved;
+    setPlaced(saved);
+    try { setPet(window.localStorage.getItem(PET_KEY) ?? "dog"); } catch { /* 使用默认伙伴 */ }
   }, []);
 
   const areaItems = useMemo(() => ITEMS.filter((item) => item.area === area), [area]);
   const currentPet = PETS.find((item) => item.id === pet) ?? PETS[0];
 
-  const savePlaced = (next: Record<Area, Array<string | null>>) => {
+  const savePlaced = (next: PlacedState, persist = true) => {
+    placedRef.current = next;
     setPlaced(next);
-    try { window.localStorage.setItem(PLACED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    if (persist) try { window.localStorage.setItem(PLACED_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   };
 
   const buy = (item: HomeItem) => {
-    if (owned.includes(item.id)) { setSelectedItem(item.id); setNotice(`已选中${item.name}，点一个空位置摆放。`); return; }
+    if (owned.includes(item.id)) { setSelectedItem(item.id); setNotice(`已选中${item.name}，点画面任意位置摆放。`); return; }
     if (coins < item.price) { setNotice(`还差 ${item.price - coins} 枚金币，完成学习就能继续积累。`); return; }
     const nextOwned = [...owned, item.id];
     setOwned(nextOwned);
     onSpend(item.price);
     setSelectedItem(item.id);
     try { window.localStorage.setItem(OWNED_KEY, JSON.stringify(nextOwned)); } catch { /* ignore */ }
-    setNotice(`${item.name}已经买好啦！点一个空位置摆放。`);
+    setNotice(`${item.name}已经买好啦！点画面任意位置摆放。`);
   };
 
-  const placeInSlot = (slotIndex: number, itemId = selectedItem) => {
-    if (!itemId || !owned.includes(itemId)) return;
-    const item = ITEMS.find((entry) => entry.id === itemId);
-    if (!item || item.area !== area) return;
-    const nextArea = placed[area].map((slot, index) => index === slotIndex ? itemId : slot === itemId ? null : slot);
-    savePlaced({ ...placed, [area]: nextArea });
+  const positionFromPointer = (event: ReactPointerEvent) => {
+    const rect = sceneRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: Math.min(94, Math.max(6, ((event.clientX - rect.left) / rect.width) * 100)),
+      y: Math.min(92, Math.max(12, ((event.clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const placeSelected = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!selectedItem || event.target !== event.currentTarget) return;
+    const position = positionFromPointer(event);
+    const item = ITEMS.find((entry) => entry.id === selectedItem);
+    if (!position || !item || item.area !== area || !owned.includes(item.id)) return;
+    const nextArea = [...placedRef.current[area].filter((entry) => entry.id !== item.id), { id: item.id, ...position }];
+    savePlaced({ ...placedRef.current, [area]: nextArea });
     setSelectedItem(null);
-    setNotice(`${item.name}摆好啦！也可以拖到其他位置。`);
+    setNotice(`${item.name}摆好啦！按住它就能随意移动。`);
   };
 
-  const removeFromSlot = (slotIndex: number) => {
-    const itemId = placed[area][slotIndex];
+  const startDragging = (event: ReactPointerEvent<HTMLButtonElement>, itemId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = itemId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const current = placedRef.current[area];
+    savePlaced({ ...placedRef.current, [area]: [...current.filter((entry) => entry.id !== itemId), ...current.filter((entry) => entry.id === itemId)] }, false);
+  };
+
+  const movePlaced = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const itemId = dragRef.current;
     if (!itemId) return;
-    const nextArea = placed[area].map((slot, index) => index === slotIndex ? null : slot);
-    savePlaced({ ...placed, [area]: nextArea });
+    event.preventDefault();
+    const position = positionFromPointer(event);
+    if (!position) return;
+    const nextArea = placedRef.current[area].map((entry) => entry.id === itemId ? { ...entry, ...position } : entry);
+    savePlaced({ ...placedRef.current, [area]: nextArea }, false);
+  };
+
+  const finishDragging = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch { /* pointer already released */ }
+    try { window.localStorage.setItem(PLACED_KEY, JSON.stringify(placedRef.current)); } catch { /* ignore */ }
+    setNotice("位置保存好啦！下次打开还会在这里。");
+  };
+
+  const removePlaced = (event: ReactPointerEvent, itemId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const nextArea = placedRef.current[area].filter((entry) => entry.id !== itemId);
+    savePlaced({ ...placedRef.current, [area]: nextArea });
     setSelectedItem(itemId);
-    setNotice("已收回装饰，点其他位置可以重新摆放。");
+    setNotice("已经收回商店，点画面任意位置可以重新摆放。");
   };
 
   const choosePet = (id: string) => {
@@ -127,23 +184,14 @@ export default function ForestHome({ coins, onSpend }: { coins: number; onSpend:
       </div>
 
       <div className="home-workbench">
-        <div className={`home-scene ${area}`}>
-          <div className="home-scene-label"><strong>{area === "indoor" ? "Leo 的阳光小屋" : "Leo 的秘密花园"}</strong><small>点选装饰后，再点空位置摆放</small></div>
+        <div className={`home-scene ${area}`} ref={sceneRef}>
+          <div className="home-scene-label"><strong>{area === "indoor" ? "Leo 的阳光小屋" : "Leo 的秘密花园"}</strong><small>{selectedItem ? "现在点画面任意位置摆放" : "按住家具，拖到喜欢的位置"}</small></div>
           <button className="home-pet" onClick={() => setNotice(`${currentPet.name}开心地向你挥挥手！`)} type="button" aria-label={`和${currentPet.name}互动`}><span>{currentPet.icon}</span><i>♥</i></button>
-          <div className="home-slots">
-            {placed[area].map((itemId, index) => {
-              const item = ITEMS.find((entry) => entry.id === itemId);
-              return (
-                <button
-                  className={`home-slot ${item ? "filled" : ""} ${selectedItem ? "ready" : ""}`}
-                  key={`${area}-${index}`}
-                  onClick={() => item ? removeFromSlot(index) : placeInSlot(index)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) => { event.preventDefault(); placeInSlot(index, event.dataTransfer.getData("text/plain")); }}
-                  type="button"
-                  aria-label={item ? `${item.name}，点击收回` : `空位置${index + 1}`}
-                >{item ? <><img src={item.asset} alt="" /><small>{item.name}</small></> : <span className="slot-plus">＋</span>}</button>
-              );
+          <div className={`home-placement-layer ${selectedItem ? "ready" : ""}`} onPointerDown={placeSelected}>
+            {placed[area].map((placement) => {
+              const item = ITEMS.find((entry) => entry.id === placement.id);
+              if (!item) return null;
+              return <button className="home-placed-item" key={placement.id} style={{ left: `${placement.x}%`, top: `${placement.y}%` }} onPointerDown={(event) => startDragging(event, item.id)} onPointerMove={movePlaced} onPointerUp={finishDragging} onPointerCancel={finishDragging} type="button" aria-label={`${item.name}，按住拖动`}><img src={item.asset} alt="" /><small>{item.name}</small><i onPointerDown={(event) => removePlaced(event, item.id)} aria-label={`收回${item.name}`}>×</i></button>;
             })}
           </div>
         </div>
