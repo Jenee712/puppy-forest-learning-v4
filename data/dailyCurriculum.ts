@@ -1,0 +1,324 @@
+import { getCourseQuestions, getCourseQuestion, subjectDailyExtras, type QuestionItem } from "./questionBank";
+
+type Draft = Omit<QuestionItem, "id" | "grade" | "eyebrow" | "source">;
+
+const englishSubject = (grade: string) => ["G1", "G2", "G3", "G4"].includes(grade) ? "英语兴趣" : "英语";
+
+export const STUDY_PROGRAM_DAYS = 90;
+
+function normalizeStudyDay(day: number) {
+  return Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(day) || 1));
+}
+
+function arrangeForStudyDay(items: QuestionItem[], day: number) {
+  const studyDay = normalizeStudyDay(day);
+  const subjectOrder: string[] = [];
+  const bySubject = new Map<string, QuestionItem[]>();
+
+  items.forEach((item) => {
+    if (!bySubject.has(item.subject)) subjectOrder.push(item.subject);
+    bySubject.set(item.subject, [...(bySubject.get(item.subject) ?? []), item]);
+  });
+
+  return subjectOrder.flatMap((subject) => {
+    const subjectItems = bySubject.get(subject) ?? [];
+    const offset = subjectItems.length ? (studyDay - 1) % subjectItems.length : 0;
+    const arranged = [...subjectItems.slice(offset), ...subjectItems.slice(0, offset)];
+    return arranged.map((item) => ({
+      ...item,
+      id: `${item.id}-day-${studyDay}`,
+      eyebrow: `${item.grade} · 第${studyDay}天 · ${subject}`,
+    }));
+  });
+}
+
+function makeEnglish(grade: string, index: number, draft: Draft): QuestionItem {
+  const englishDifficultyCeilings: Record<string, QuestionItem["difficulty"]> = { G1: 1, G2: 1, G3: 1, G4: 1, G5: 2, G6: 2, G7: 2, G8: 2 };
+  const difficultyCeiling = englishDifficultyCeilings[grade] ?? 2;
+  const easierG8Draft: Draft = draft.title === "判断证据是否充分"
+    ? {
+        ...draft,
+        knowledgePoint: "短文原因理解",
+        title: "读懂选择的原因",
+        prompt: "Mia can do homework online or on paper. She chooses online homework because she can hear the new English words. Why does Mia choose online homework?",
+        visual: "online homework → hear new words",
+        options: ["She can hear the new words.", "She has no paper at home.", "Her cousin chose it."],
+        answer: "She can hear the new words.",
+        explanation: "短文直接说明 Mia 选择线上作业，是因为她可以听到英语新词。",
+        vocabulary: [{ term: "choose", phonetic: "/tʃuːz/", tag: "动词", meaning: "选择", expansion: "choose A or B 表示在两个选项中作选择。", example: "You can choose online work or paper work.", exampleMeaning: "你可以选择线上作业或纸质作业。" }],
+      }
+    : draft.title === "保持句意不变"
+      ? {
+          ...draft,
+          knowledgePoint: "句意理解",
+          title: "选出相同意思",
+          prompt: "The box is very heavy. Mia cannot carry it. Which sentence has the same meaning?",
+          visual: "📦 very heavy → Mia cannot carry it",
+          options: ["The box is too heavy for Mia to carry.", "Mia carries the light box.", "The box is easy for Mia to carry."],
+          answer: "The box is too heavy for Mia to carry.",
+          explanation: "very heavy 和 cannot carry 合起来，可以用 too heavy to carry 表达。",
+        }
+      : draft;
+  return { ...easierG8Draft, difficulty: easierG8Draft.difficulty > difficultyCeiling ? difficultyCeiling : easierG8Draft.difficulty, id: `${grade.toLowerCase()}-daily-english-${index + 1}`, grade, eyebrow: `${grade} · 英语学习站`, source: "local_core" };
+}
+
+type AlphabetSeed = {
+  upper: string;
+  lower: string;
+  word: string;
+  meaning: string;
+  icon: string;
+  sound: string;
+};
+
+const alphabetSeeds: AlphabetSeed[] = [
+  { upper: "A", lower: "a", word: "apple", meaning: "苹果", icon: "🍎", sound: "/æ/" },
+  { upper: "B", lower: "b", word: "ball", meaning: "球", icon: "⚽", sound: "/b/" },
+  { upper: "C", lower: "c", word: "cat", meaning: "猫", icon: "🐱", sound: "/k/" },
+  { upper: "D", lower: "d", word: "dog", meaning: "狗", icon: "🐶", sound: "/d/" },
+  { upper: "E", lower: "e", word: "egg", meaning: "鸡蛋", icon: "🥚", sound: "/e/" },
+  { upper: "F", lower: "f", word: "fish", meaning: "鱼", icon: "🐟", sound: "/f/" },
+  { upper: "G", lower: "g", word: "goat", meaning: "山羊", icon: "🐐", sound: "/g/" },
+  { upper: "H", lower: "h", word: "hat", meaning: "帽子", icon: "🎩", sound: "/h/" },
+  { upper: "I", lower: "i", word: "ink", meaning: "墨水", icon: "🖋️", sound: "/ɪ/" },
+  { upper: "J", lower: "j", word: "juice", meaning: "果汁", icon: "🧃", sound: "/dʒ/" },
+  { upper: "K", lower: "k", word: "kite", meaning: "风筝", icon: "🪁", sound: "/k/" },
+  { upper: "L", lower: "l", word: "lion", meaning: "狮子", icon: "🦁", sound: "/l/" },
+  { upper: "M", lower: "m", word: "moon", meaning: "月亮", icon: "🌙", sound: "/m/" },
+  { upper: "N", lower: "n", word: "nest", meaning: "鸟巢", icon: "🪺", sound: "/n/" },
+  { upper: "O", lower: "o", word: "orange", meaning: "橙子", icon: "🍊", sound: "/ɒ/" },
+  { upper: "P", lower: "p", word: "panda", meaning: "熊猫", icon: "🐼", sound: "/p/" },
+  { upper: "Q", lower: "q", word: "queen", meaning: "女王", icon: "👸", sound: "/kw/" },
+  { upper: "R", lower: "r", word: "rabbit", meaning: "兔子", icon: "🐰", sound: "/r/" },
+  { upper: "S", lower: "s", word: "sun", meaning: "太阳", icon: "☀️", sound: "/s/" },
+  { upper: "T", lower: "t", word: "train", meaning: "火车", icon: "🚂", sound: "/t/" },
+  { upper: "U", lower: "u", word: "umbrella", meaning: "雨伞", icon: "☂️", sound: "/ʌ/" },
+  { upper: "V", lower: "v", word: "violin", meaning: "小提琴", icon: "🎻", sound: "/v/" },
+  { upper: "W", lower: "w", word: "whale", meaning: "鲸鱼", icon: "🐳", sound: "/w/" },
+  { upper: "X", lower: "x", word: "x-ray", meaning: "X光", icon: "🩻", sound: "/ks/" },
+  { upper: "Y", lower: "y", word: "yo-yo", meaning: "溜溜球", icon: "🪀", sound: "/j/" },
+  { upper: "Z", lower: "z", word: "zebra", meaning: "斑马", icon: "🦓", sound: "/z/" },
+];
+
+function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
+  const studyDay = normalizeStudyDay(day);
+  const letterIndex = (studyDay - 1) % alphabetSeeds.length;
+  const cycle = Math.floor((studyDay - 1) / alphabetSeeds.length) + 1;
+  const seed = alphabetSeeds[letterIndex];
+  const distractors = [alphabetSeeds[(letterIndex + 1) % 26], alphabetSeeds[(letterIndex + 2) % 26]];
+  const subject = englishSubject(grade);
+  const visual = `LETTER_ART:${seed.upper}:${seed.lower}:${seed.icon}:${seed.word}`;
+  const vocabulary = [{
+    term: seed.word,
+    tag: "启蒙词汇",
+    meaning: seed.meaning,
+    expansion: `${seed.upper} ${seed.lower} is for ${seed.word}.`,
+    example: `I see a ${seed.word}.`,
+    exampleMeaning: `我看见一个${seed.meaning}。`,
+  }];
+  const recognitionOptions = grade === "G1"
+    ? [seed.upper, distractors[0].upper, distractors[1].upper]
+    : [`${seed.upper} ${seed.lower}`, `${distractors[0].upper} ${distractors[0].lower}`, `${distractors[1].upper} ${distractors[1].lower}`];
+  const recognitionAnswer = recognitionOptions[0];
+  const wordOptions = [`${seed.icon} ${seed.word}`, `${distractors[0].icon} ${distractors[0].word}`, `${distractors[1].icon} ${distractors[1].word}`];
+  const prefix = `${grade.toLowerCase()}-alphabet-${seed.lower}`;
+  const eyebrow = `${grade} · 第${studyDay}天 · 字母乐园 · 第${cycle}轮`;
+
+  return [
+    {
+      id: `${prefix}-recognize-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母认识", type: "single_choice", difficulty: 1,
+      title: `认识字母 ${seed.upper} ${seed.lower}`,
+      prompt: grade === "G1" ? `这位卡通字母朋友是谁？` : `哪一组是字母 ${seed.upper} 的大写和小写？`,
+      visual, options: recognitionOptions, answer: recognitionAnswer,
+      explanation: `${seed.upper} 是大写，${seed.lower} 是小写，它们是同一个字母。`,
+      optionExplanations: Object.fromEntries(recognitionOptions.map((option) => [option, option === recognitionAnswer ? `${seed.upper} 和 ${seed.lower} 是正确的大小写字形。` : `这是字母 ${option}，不是今天认识的字母 ${seed.upper}。`])),
+      activityKind: "practice", estimatedMinutes: 3, vocabulary,
+    },
+    {
+      id: `${prefix}-phonics-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母拼读", type: "single_choice", difficulty: 1,
+      title: `${seed.upper} 的声音 ${seed.sound}`,
+      prompt: `听一听：${seed.upper} ${seed.lower}，${seed.sound}。哪个单词和今天的字母是好朋友？`,
+      visual, options: wordOptions, answer: wordOptions[0],
+      explanation: `${seed.word} 以字母 ${seed.upper} 的声音开头：${seed.upper} ${seed.sound} ${seed.word}。`,
+      optionExplanations: Object.fromEntries(wordOptions.map((option, index) => [option, index === 0 ? `${seed.word} 以字母 ${seed.upper} 开头。` : `${distractors[index - 1].word} 以字母 ${distractors[index - 1].upper} 开头。`])),
+      activityKind: "phonics", estimatedMinutes: 4, vocabulary,
+    },
+    {
+      id: `${prefix}-trace-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母描写", type: "fill_blank", difficulty: 1,
+      title: `用手描写 ${seed.upper} ${seed.lower}`,
+      prompt: `先描大写 ${seed.upper}，再描小写 ${seed.lower}。`,
+      visual, options: [], answer: "done",
+      explanation: `你完成了 ${seed.upper} 和 ${seed.lower} 的描写，记住大写和小写的不同形状。`,
+      activityKind: "trace", traceLetter: `${seed.upper} ${seed.lower}`, estimatedMinutes: 5, vocabulary,
+    },
+  ];
+}
+
+const englishDaily: Record<string, Draft[]> = {
+  G1: [
+    { subject: "英语兴趣", knowledgePoint: "字母描写", type: "fill_blank", difficulty: 1, title: "描一描字母 A", prompt: "跟着浅色字母描写大写 A，再描写小写 a。", visual: "A a", options: [], answer: "done", explanation: "A 和 a 是同一个字母的大小写。写字母时要从正确的位置起笔。", activityKind: "trace", traceLetter: "A a", estimatedMinutes: 4, vocabulary: [{ term: "A a", tag: "字母", meaning: "字母A的大小写", expansion: "A is for apple.", example: "A is for apple.", exampleMeaning: "A代表apple（苹果）。" }] },
+    { subject: "英语兴趣", knowledgePoint: "汉译英", type: "single_choice", difficulty: 1, title: "苹果怎么说", prompt: "“苹果”用英语怎么说？", visual: "🍎", options: ["apple", "ball", "cat"], answer: "apple", explanation: "苹果是 apple，开头字母是 a。", activityKind: "cn_to_en", estimatedMinutes: 3, vocabulary: [{ term: "apple", phonetic: "/ˈæpəl/", tag: "名词", meaning: "苹果", expansion: "an apple 表示一个苹果。", example: "I see an apple.", exampleMeaning: "我看见一个苹果。" }] },
+    { subject: "英语兴趣", knowledgePoint: "英译汉", type: "single_choice", difficulty: 1, title: "听懂 cat", prompt: "cat 是什么意思？", visual: "cat 🐱", options: ["小猫", "小狗", "小兔"], answer: "小猫", explanation: "cat 表示猫。跟着女声再读一遍 cat。", activityKind: "en_to_cn", estimatedMinutes: 3, vocabulary: [{ term: "cat", phonetic: "/kæt/", tag: "名词", meaning: "猫", expansion: "a cat 是一只猫。", example: "The cat is cute.", exampleMeaning: "这只猫很可爱。" }] },
+    { subject: "英语兴趣", knowledgePoint: "绘本听读", type: "single_choice", difficulty: 1, title: "绘本：A Red Ball", prompt: "Listen and read: “Ben has a red ball. The ball can bounce.” What does Ben have?", visual: "📖  Ben has a red ball. 🔴  Boing! Boing!", options: ["A red ball.", "A blue bag.", "A little cat."], answer: "A red ball.", explanation: "绘本第一句直接告诉我们 Ben has a red ball。", activityKind: "storybook", estimatedMinutes: 5, vocabulary: [{ term: "red ball", phonetic: "/red bɔːl/", tag: "名词词组", meaning: "红色的球", expansion: "颜色词通常放在名词前面。", example: "Ben has a red ball.", exampleMeaning: "本有一个红色的球。" }, { term: "bounce", phonetic: "/baʊns/", tag: "动词", meaning: "弹起；弹跳", expansion: "A ball can bounce.", example: "The ball can bounce.", exampleMeaning: "球会弹起来。" }] },
+    { subject: "英语兴趣", knowledgePoint: "听音辨词", type: "single_choice", difficulty: 1, title: "听一听，找图片", prompt: "Listen: dog. Which picture shows a dog?", visual: "🔊 dog", options: ["🐶 dog", "🐱 cat", "🐰 rabbit"], answer: "🐶 dog", explanation: "dog 是小狗。先听声音，再把声音和图片连起来。", activityKind: "phonics", estimatedMinutes: 3, vocabulary: [{ term: "dog", phonetic: "/dɒɡ/", tag: "名词", meaning: "小狗", expansion: "dog 以字母 d 开头。", example: "I see a dog.", exampleMeaning: "我看见一只小狗。" }] },
+  ],
+  G2: [
+    { subject: "英语兴趣", knowledgePoint: "自然拼读", type: "single_choice", difficulty: 1, title: "听首音找单词", prompt: "Which word begins with the /d/ sound?", visual: "D d · /d/", options: ["dog", "cat", "sun"], answer: "dog", explanation: "dog 以字母 d 和 /d/ 音开头。", activityKind: "phonics", estimatedMinutes: 3, vocabulary: [{ term: "dog", phonetic: "/dɒɡ/", tag: "名词", meaning: "狗", expansion: "dog 的首音是 /d/。", example: "I see a dog.", exampleMeaning: "我看见一只狗。" }] },
+    { subject: "英语兴趣", knowledgePoint: "汉译英", type: "single_choice", difficulty: 1, title: "礼貌问候", prompt: "早上见到老师，“早上好”怎么说？", visual: "🌞 👩‍🏫", options: ["Good morning!", "Good night!", "Goodbye!"], answer: "Good morning!", explanation: "早晨问候使用 Good morning。", activityKind: "cn_to_en", estimatedMinutes: 3, vocabulary: [{ term: "Good morning", phonetic: "/ɡʊd ˈmɔːnɪŋ/", tag: "问候语", meaning: "早上好", expansion: "中午前见面常用这句问候。", example: "Good morning, Mum!", exampleMeaning: "妈妈，早上好！" }] },
+    { subject: "英语兴趣", knowledgePoint: "句子排序", type: "ordering", difficulty: 1, title: "拼出完整句子", prompt: "按顺序拼出“这是一只小狗”。", visual: "🐶", options: ["This", "is", "a", "dog."], answer: "This | is | a | dog.", explanation: "介绍一个物品或动物，可以用 This is a...。", activityKind: "cn_to_en", estimatedMinutes: 4, vocabulary: [{ term: "This is...", phonetic: "/ðɪs ɪz/", tag: "句型", meaning: "这是……", expansion: "后面接 a/an 和单数名词。", example: "This is a dog.", exampleMeaning: "这是一只小狗。" }], grammarTip: { title: "介绍事物", pattern: "This is + a/an + 名词", explanation: "This is 用来介绍眼前的人或事物。" } },
+    { subject: "英语兴趣", knowledgePoint: "绘本听读", type: "single_choice", difficulty: 1, title: "绘本：My Little Dog", prompt: "Listen and read: “My dog is small. It can run and jump. It likes its blue ball.” What colour is the ball?", visual: "📖  🐶 runs → jumps → finds a blue ball 🔵", options: ["Blue.", "Red.", "Green."], answer: "Blue.", explanation: "最后一句说 It likes its blue ball，所以球是蓝色的。", activityKind: "storybook", estimatedMinutes: 5, vocabulary: [{ term: "small", phonetic: "/smɔːl/", tag: "形容词", meaning: "小的", expansion: "反义词是 big。", example: "My dog is small.", exampleMeaning: "我的狗很小。" }, { term: "run and jump", phonetic: "/rʌn ænd dʒʌmp/", tag: "动词词组", meaning: "跑和跳", expansion: "and 可以连接两个动作。", example: "It can run and jump.", exampleMeaning: "它会跑和跳。" }] },
+    { subject: "英语兴趣", knowledgePoint: "听懂简短指令", type: "single_choice", difficulty: 1, title: "听指令做动作", prompt: "Listen: Stand up, please. What should you do?", visual: "🔊 Stand up, please.", options: ["站起来", "坐下来", "打开书"], answer: "站起来", explanation: "Stand up 表示站起来，please 让指令更礼貌。", activityKind: "en_to_cn", estimatedMinutes: 3, vocabulary: [{ term: "stand up", phonetic: "/stænd ʌp/", tag: "课堂指令", meaning: "站起来", expansion: "相反指令是 sit down。", example: "Stand up, please.", exampleMeaning: "请站起来。" }] },
+  ],
+  G3: [
+    { subject: "英语兴趣", knowledgePoint: "字母组合与拼读", type: "single_choice", difficulty: 1, title: "拼读 sh", prompt: "Which word begins with the /ʃ/ sound?", visual: "sh → /ʃ/", options: ["ship", "cat", "desk"], answer: "ship", explanation: "ship 的开头字母组合 sh 发 /ʃ/。", activityKind: "phonics", estimatedMinutes: 3, vocabulary: [{ term: "ship", phonetic: "/ʃɪp/", tag: "名词", meaning: "轮船", expansion: "sh 在 ship、shop、fish 中常发 /ʃ/。", example: "The ship is big.", exampleMeaning: "这艘船很大。" }] },
+    { subject: "英语兴趣", knowledgePoint: "汉译英", type: "ordering", difficulty: 1, title: "我的书包在哪里", prompt: "把“我的书包在椅子下面”排列成正确英文。", visual: "🎒 ⬇️ 🪑", options: ["My bag", "is", "under", "the chair."], answer: "My bag | is | under | the chair.", explanation: "位置句型是“物品 + is + 位置介词 + 地点”。", activityKind: "cn_to_en", estimatedMinutes: 4, vocabulary: [{ term: "under the chair", phonetic: "/ˈʌndə ðə tʃeə/", tag: "位置词组", meaning: "在椅子下面", expansion: "under 表示在某物下方。", example: "My bag is under the chair.", exampleMeaning: "我的书包在椅子下面。" }], grammarTip: { title: "表达位置", pattern: "物品 + is + in/on/under + 地点", explanation: "用位置介词说明物品在哪里。" } },
+    { subject: "英语兴趣", knowledgePoint: "英译汉", type: "single_choice", difficulty: 1, title: "读懂日常句子", prompt: "“Please open your book.” 是什么意思？", visual: "📖", options: ["请打开你的书。", "请合上你的书。", "请把书放进书包。"], answer: "请打开你的书。", explanation: "open your book 表示打开你的书。", activityKind: "en_to_cn", estimatedMinutes: 3, vocabulary: [{ term: "open your book", phonetic: "/ˈəʊpən jɔː bʊk/", tag: "课堂指令", meaning: "打开你的书", expansion: "please 让指令听起来更礼貌。", example: "Please open your book.", exampleMeaning: "请打开你的书。" }] },
+    { subject: "英语兴趣", knowledgePoint: "绘本阅读", type: "single_choice", difficulty: 1, title: "绘本：The Lost Kite", prompt: "Sam's kite is in the tree. A bird pulls the string, and the kite falls down. Who helps Sam?", visual: "📖  🪁 in a tree → 🐦 pulls → 🪁 falls", options: ["A bird.", "A fish.", "A rabbit."], answer: "A bird.", explanation: "小鸟拉动了线，让风筝落下来，因此是小鸟帮助了 Sam。", activityKind: "storybook", estimatedMinutes: 5, vocabulary: [{ term: "in the tree", phonetic: "/ɪn ðə triː/", tag: "位置词组", meaning: "在树上（外来物）", expansion: "风筝不是树的一部分，所以用 in the tree。", example: "The kite is in the tree.", exampleMeaning: "风筝挂在树上。" }, { term: "fall down", phonetic: "/fɔːl daʊn/", tag: "动词词组", meaning: "掉下来", expansion: "过去式是 fell down。", example: "The kite falls down.", exampleMeaning: "风筝掉了下来。" }] },
+    { subject: "英语兴趣", knowledgePoint: "句型表达", type: "ordering", difficulty: 1, title: "介绍我的朋友", prompt: "把“这是我的朋友莉莉”排列成正确英文。", visual: "👧🤝👦", options: ["This", "is", "my friend", "Lily."], answer: "This | is | my friend | Lily.", explanation: "介绍身边的人可用 This is my friend...。", activityKind: "cn_to_en", estimatedMinutes: 4, vocabulary: [{ term: "my friend", phonetic: "/maɪ frend/", tag: "名词词组", meaning: "我的朋友", expansion: "my 表示“我的”。", example: "This is my friend Lily.", exampleMeaning: "这是我的朋友莉莉。" }] },
+  ],
+  G4: [
+    { subject: "英语兴趣", knowledgePoint: "汉译英与时间顺序", type: "ordering", difficulty: 2, title: "完成早晨计划", prompt: "把“我吃完早餐后步行去学校”排列成英文。", visual: "breakfast → walk → school", options: ["After breakfast,", "I", "walk", "to school."], answer: "After breakfast, | I | walk | to school.", explanation: "After breakfast 放在句首说明先后顺序，主句按主语、动词和地点排列。", activityKind: "cn_to_en", estimatedMinutes: 5, vocabulary: [{ term: "after breakfast", phonetic: "/ˈɑːftə ˈbrekfəst/", tag: "时间词组", meaning: "早餐后", expansion: "after 用来表示一件事发生在另一件事之后。", example: "I read after breakfast.", exampleMeaning: "我早餐后阅读。" }, { term: "walk to school", phonetic: "/wɔːk tə skuːl/", tag: "动词词组", meaning: "步行去学校", expansion: "walk to 后接地点。", example: "We walk to school together.", exampleMeaning: "我们一起步行去学校。" }], grammarTip: { title: "表达先后顺序", pattern: "After + 事情, 主语 + 动作", explanation: "after 引出的时间信息可以放在句首，后面用逗号隔开。" } },
+    { subject: "英语兴趣", knowledgePoint: "英译汉与语境", type: "single_choice", difficulty: 2, title: "读懂借阅提醒", prompt: "“You may keep the library book for seven days, but please return it on time.” 的准确意思是什么？", visual: "library book · 7 days · return on time", options: ["这本图书可以借七天，但要按时归还。", "图书馆只在七天后开放。", "必须在图书馆里读七本书。"], answer: "这本图书可以借七天，但要按时归还。", explanation: "keep for seven days 表示可保留七天，return on time 表示按时归还；but 连接两项信息。", activityKind: "en_to_cn", estimatedMinutes: 5, vocabulary: [{ term: "keep ... for seven days", phonetic: "/kiːp fə ˈsevən deɪz/", tag: "时间结构", meaning: "保留（借用）七天", expansion: "for + 时间段说明持续多久。", example: "You can keep the book for a week.", exampleMeaning: "这本书你可以借一周。" }, { term: "return on time", phonetic: "/rɪˈtɜːn ɒn taɪm/", tag: "动词词组", meaning: "按时归还", expansion: "on time 表示不早不晚、准时。", example: "Please return the book on time.", exampleMeaning: "请按时归还图书。" }] },
+    { subject: "英语兴趣", knowledgePoint: "语法语境与线索", type: "single_choice", difficulty: 2, title: "Choose the right action", prompt: "Look! The rain is getting heavier, and the children ____ their football game now.", visual: "rain heavier · game stops now", options: ["are stopping", "stop every Friday", "stopped tomorrow"], answer: "are stopping", explanation: "Look 和 now 指向正在发生的动作；children 是复数，因此使用 are stopping。", activityKind: "grammar", estimatedMinutes: 4, vocabulary: [{ term: "get heavier", phonetic: "/ɡet ˈheviə/", tag: "变化词组", meaning: "变得更大；雨下得更大", expansion: "get + 比较级可表示变化趋势。", example: "The rain is getting heavier.", exampleMeaning: "雨越下越大。" }, { term: "stop the game", phonetic: "/stɒp ðə ɡeɪm/", tag: "动词词组", meaning: "停止比赛", expansion: "stop 后直接接要停止的事物。", example: "They stopped the game because of rain.", exampleMeaning: "他们因为下雨停止了比赛。" }], grammarTip: { title: "现在进行时", pattern: "am/is/are + 动词-ing", explanation: "除了看 now，还要核对主语的单复数和情境中的动作是否正在发生。" } },
+    { subject: "英语兴趣", knowledgePoint: "绘本因果推断", type: "single_choice", difficulty: 2, title: "绘本：The Missing Seedlings", prompt: "Mina planted six seedlings. The next morning, two were bent and tiny footprints led to a hole by the fence. She put a low net around the garden. Why did Mina add the net?", visual: "6 seedlings → 2 bent + footprints → low net", options: ["To protect the seedlings from a small animal.", "To help the seedlings become blue.", "To stop sunlight from reaching the garden."], answer: "To protect the seedlings from a small animal.", explanation: "折弯的幼苗、小脚印和篱笆边的洞共同指向小动物；加网是为了保护幼苗。", activityKind: "storybook", estimatedMinutes: 7, vocabulary: [{ term: "seedling", phonetic: "/ˈsiːdlɪŋ/", tag: "名词", meaning: "幼苗", expansion: "seed 是种子，seedling 是刚长出的幼苗。", example: "The seedling needs water.", exampleMeaning: "幼苗需要水。" }, { term: "footprint", phonetic: "/ˈfʊtprɪnt/", tag: "名词", meaning: "脚印", expansion: "由 foot 和 print 组成的复合词。", example: "We saw small footprints in the soil.", exampleMeaning: "我们在泥土里看见了小脚印。" }, { term: "protect ... from ...", phonetic: "/prəˈtekt frəm/", tag: "动词结构", meaning: "保护……免受……", expansion: "from 后面接需要防范的事物。", example: "The net protects plants from birds.", exampleMeaning: "网保护植物不被鸟破坏。" }] },
+    { subject: "英语兴趣", knowledgePoint: "非连续文本信息整合", type: "single_choice", difficulty: 2, title: "Choose a library activity", prompt: "Library plan: Story Time—Tuesday 4:00; Science Club—Thursday 4:30. Leo is free only on Thursday after 4:00 and likes experiments. Which activity fits him?", visual: "Tue 4:00 Story｜Thu 4:30 Science｜Leo: Thu + experiments", options: ["Science Club on Thursday.", "Story Time on Tuesday.", "Both activities on Monday."], answer: "Science Club on Thursday.", explanation: "要同时满足星期四有空和喜欢实验两项条件，Science Club 是唯一匹配。", activityKind: "reading", estimatedMinutes: 6, vocabulary: [{ term: "be free", phonetic: "/bi friː/", tag: "状态词组", meaning: "有空", expansion: "这里 free 不是“免费”，而是“时间空闲”。", example: "I am free after four.", exampleMeaning: "我四点后有空。" }, { term: "fit", phonetic: "/fɪt/", tag: "动词", meaning: "适合；符合", expansion: "fit someone 表示适合某人的条件。", example: "This plan fits me.", exampleMeaning: "这个计划适合我。" }] },
+  ],
+  G5: [
+    { subject: "英语", knowledgePoint: "汉译英", type: "ordering", difficulty: 2, title: "表达日常习惯", prompt: "把“我通常七点半步行上学”排列成英文。", visual: "🕢 🚶 🏫", options: ["I", "usually", "walk to school", "at half past seven."], answer: "I | usually | walk to school | at half past seven.", explanation: "频率副词 usually 放在实义动词 walk 前；具体时间前用 at。", activityKind: "cn_to_en", estimatedMinutes: 4, vocabulary: [{ term: "walk to school", phonetic: "/wɔːk tə skuːl/", tag: "动词词组", meaning: "步行上学", expansion: "walk to + 地点，表示步行去某地。", example: "I usually walk to school.", exampleMeaning: "我通常步行上学。" }, { term: "half past seven", phonetic: "/hɑːf pɑːst ˈsevən/", tag: "时间表达", meaning: "七点半", expansion: "half past + 小时表示几点半。", example: "School starts at half past seven.", exampleMeaning: "学校七点半开始上课。" }] },
+    { subject: "英语", knowledgePoint: "英译汉", type: "single_choice", difficulty: 2, title: "读懂校园通知", prompt: "“Please return the library book by Friday.” 的准确意思是？", visual: "📚 → Friday", options: ["请在星期五前归还图书馆的书。", "请星期五去买一本书。", "图书馆星期五不开放。"], answer: "请在星期五前归还图书馆的书。", explanation: "return 表示归还，by Friday 表示不晚于星期五。", activityKind: "en_to_cn", estimatedMinutes: 3, vocabulary: [{ term: "return", phonetic: "/rɪˈtɜːn/", tag: "动词", meaning: "归还；返回", expansion: "return a book 表示还书。", example: "Please return the book tomorrow.", exampleMeaning: "请明天归还这本书。" }, { term: "by Friday", phonetic: "/baɪ ˈfraɪdeɪ/", tag: "时间短语", meaning: "不迟于星期五", expansion: "by 表示截止时间。", example: "Finish it by Friday.", exampleMeaning: "请在星期五前完成它。" }] },
+    { subject: "英语", knowledgePoint: "语法语境", type: "single_choice", difficulty: 2, title: "选择正确时态", prompt: "Listen! Lucy ____ the piano in the music room.", visual: "🎹  right now", options: ["plays", "is playing", "played"], answer: "is playing", explanation: "Listen 提示动作正在发生，Lucy 是单数，使用 is playing。", activityKind: "grammar", estimatedMinutes: 3, vocabulary: [{ term: "music room", phonetic: "/ˈmjuːzɪk ruːm/", tag: "名词词组", meaning: "音乐教室", expansion: "room 前用具体功能词说明房间用途。", example: "She is in the music room.", exampleMeaning: "她在音乐教室。" }], grammarTip: { title: "现在进行时", pattern: "am/is/are + 动词-ing", explanation: "Listen、Look、now 常提示正在发生的动作。" } },
+    { subject: "英语", knowledgePoint: "绘本推断", type: "single_choice", difficulty: 2, title: "绘本：The Empty Bowl", prompt: "Nina planted the seed, watered it every day, but nothing grew. At the contest, she took the empty bowl to the king. The king smiled because all the seeds had been cooked. Why did Nina win?", visual: "📖  seed → water → empty bowl → honest child", options: ["She was honest.", "She grew the tallest flower.", "She changed the seed."], answer: "She was honest.", explanation: "煮过的种子不能发芽，Nina 带着空碗如实参加，表现了诚实。", activityKind: "storybook", estimatedMinutes: 6, vocabulary: [{ term: "empty", phonetic: "/ˈempti/", tag: "形容词", meaning: "空的", expansion: "反义词是 full。", example: "The bowl was empty.", exampleMeaning: "碗是空的。" }, { term: "honest", phonetic: "/ˈɒnɪst/", tag: "形容词", meaning: "诚实的", expansion: "h 不发音，读音以元音开头。", example: "Nina was honest.", exampleMeaning: "妮娜很诚实。" }] },
+    { subject: "英语", knowledgePoint: "否定句改写", type: "single_choice", difficulty: 2, title: "改写日常习惯", prompt: "Which sentence correctly changes “Tom plays football on Monday” into the negative form?", visual: "Tom · Monday · ⚽", options: ["Tom doesn't play football on Monday.", "Tom don't plays football on Monday.", "Tom isn't play football on Monday."], answer: "Tom doesn't play football on Monday.", explanation: "第三人称单数否定句用 doesn't + 动词原形。", activityKind: "grammar", estimatedMinutes: 4, vocabulary: [{ term: "doesn't play", phonetic: "/ˈdʌznt pleɪ/", tag: "否定结构", meaning: "不踢；不玩", expansion: "doesn't 后的动词恢复原形。", example: "Tom doesn't play football today.", exampleMeaning: "汤姆今天不踢足球。" }], grammarTip: { title: "一般现在时否定句", pattern: "第三人称单数 + doesn't + 动词原形", explanation: "助动词 does 已经体现单数，后面的动词不用加 s。" } },
+  ],
+  G6: [
+    { subject: "英语", knowledgePoint: "汉译英", type: "ordering", difficulty: 2, title: "表达未来计划", prompt: "把“我们这个周末要参观科技馆”排列成英文。", visual: "📅 🧪🏛️", options: ["We", "are going to", "visit", "the science museum", "this weekend."], answer: "We | are going to | visit | the science museum | this weekend.", explanation: "已经安排的计划可用 be going to + 动词原形。", activityKind: "cn_to_en", estimatedMinutes: 4, vocabulary: [{ term: "science museum", phonetic: "/ˈsaɪəns mjuˈziːəm/", tag: "名词词组", meaning: "科技馆；科学博物馆", expansion: "visit 后直接接地点。", example: "We will visit the science museum.", exampleMeaning: "我们将参观科技馆。" }], grammarTip: { title: "计划与打算", pattern: "be going to + 动词原形", explanation: "表达已经打算做的事情。" } },
+    { subject: "英语", knowledgePoint: "英译汉", type: "single_choice", difficulty: 2, title: "读懂路线指引", prompt: "“Go past the bank and turn right at the second crossing.” 的意思是？", visual: "🏦 → 2️⃣ ↱", options: ["经过银行，在第二个路口右转。", "在银行前面的第一个路口左转。", "穿过银行后一直直走。"], answer: "经过银行，在第二个路口右转。", explanation: "go past 是经过，turn right 是右转，at the second crossing 是在第二个路口。", activityKind: "en_to_cn", estimatedMinutes: 4, vocabulary: [{ term: "go past", phonetic: "/ɡəʊ pɑːst/", tag: "动词词组", meaning: "经过", expansion: "用于路线指引。", example: "Go past the post office.", exampleMeaning: "经过邮局。" }, { term: "the second crossing", phonetic: "/ðə ˈsekənd ˈkrɒsɪŋ/", tag: "名词词组", meaning: "第二个路口", expansion: "序数词前通常用 the。", example: "Turn right at the second crossing.", exampleMeaning: "在第二个路口右转。" }] },
+    { subject: "英语", knowledgePoint: "语法转换", type: "single_choice", difficulty: 2, title: "把陈述句改成问句", prompt: "Which question matches “They are doing an experiment”?", visual: "🧒🧪👧", options: ["What are they doing?", "What do they did?", "Where they are doing?"], answer: "What are they doing?", explanation: "询问正在做什么，用 What + are + 主语 + doing。", activityKind: "grammar", estimatedMinutes: 4, vocabulary: [{ term: "do an experiment", phonetic: "/duː ən ɪkˈsperɪmənt/", tag: "动词词组", meaning: "做实验", expansion: "do 变为 doing 时去掉词尾 e 不适用，直接加 -ing。", example: "They are doing an experiment.", exampleMeaning: "他们正在做实验。" }], grammarTip: { title: "现在进行时特殊疑问句", pattern: "What + am/is/are + 主语 + doing?", explanation: "be动词移到主语前，句末用 doing。" } },
+    { subject: "英语", knowledgePoint: "短文概括", type: "single_choice", difficulty: 2, title: "绘本：A Garden on the Roof", prompt: "Students carried soil to the school roof, planted vegetables and collected rainwater. Months later, the roof was cooler and birds visited it. What is the best title?", visual: "📖  school roof → garden → cooler roof + birds", options: ["A Garden on the Roof", "A Rainy Sports Day", "The Lost School Bag"], answer: "A Garden on the Roof", explanation: "全文围绕学生在屋顶建花园以及带来的变化展开。", activityKind: "storybook", estimatedMinutes: 6, vocabulary: [{ term: "roof", phonetic: "/ruːf/", tag: "名词", meaning: "屋顶", expansion: "on the roof 表示在屋顶上。", example: "They made a garden on the roof.", exampleMeaning: "他们在屋顶建了一个花园。" }, { term: "collect rainwater", phonetic: "/kəˈlekt ˈreɪnwɔːtə/", tag: "动词词组", meaning: "收集雨水", expansion: "collect 表示收集、聚集。", example: "We collect rainwater for the plants.", exampleMeaning: "我们收集雨水浇植物。" }] },
+    { subject: "英语", knowledgePoint: "邮件信息提取", type: "single_choice", difficulty: 2, title: "读懂活动邮件", prompt: "The email says: “Meet at the school gate at 8:15. Bring water and wear sports shoes.” Which item is NOT required?", visual: "✉️ 8:15 · water · sports shoes", options: ["A camera.", "Water.", "Sports shoes."], answer: "A camera.", explanation: "邮件要求带水并穿运动鞋，没有要求带相机。", activityKind: "reading", estimatedMinutes: 5, vocabulary: [{ term: "be required", phonetic: "/bi rɪˈkwaɪəd/", tag: "被动词组", meaning: "被要求；必需", expansion: "题目中的 NOT required 要特别留意否定词。", example: "Sports shoes are required.", exampleMeaning: "必须穿运动鞋。" }] },
+  ],
+  G7: [
+    { subject: "英语", knowledgePoint: "汉译英", type: "ordering", difficulty: 3, title: "比较两种出行方式", prompt: "把“乘地铁比乘公交车快”排列成英文。", visual: "🚇 > 🚌", options: ["Taking the underground", "is", "faster than", "taking the bus."], answer: "Taking the underground | is | faster than | taking the bus.", explanation: "比较两个活动可用动名词短语作主语，结构为 A is faster than B。", activityKind: "cn_to_en", estimatedMinutes: 4, vocabulary: [{ term: "the underground", phonetic: "/ði ˈʌndəɡraʊnd/", tag: "名词", meaning: "地铁", expansion: "美式英语常用 subway。", example: "We take the underground to the museum.", exampleMeaning: "我们乘地铁去博物馆。" }, { term: "faster than", phonetic: "/ˈfɑːstə ðæn/", tag: "比较结构", meaning: "比……更快", expansion: "fast 的比较级直接加 -er。", example: "A train is faster than a bus.", exampleMeaning: "火车比公交车快。" }] },
+    { subject: "英语", knowledgePoint: "英译汉", type: "single_choice", difficulty: 3, title: "理解建议与原因", prompt: "“You'd better take an umbrella in case it rains.” 的准确意思是？", visual: "☂️ 🌧️", options: ["你最好带把伞，以防下雨。", "如果下雨，你必须买一把伞。", "天气已经下雨，不要出门。"], answer: "你最好带把伞，以防下雨。", explanation: "had better 表示最好做某事，in case 表示以防。", activityKind: "en_to_cn", estimatedMinutes: 4, vocabulary: [{ term: "had better", phonetic: "/hæd ˈbetə/", tag: "建议结构", meaning: "最好……", expansion: "后接动词原形。", example: "You'd better leave early.", exampleMeaning: "你最好早点出发。" }, { term: "in case", phonetic: "/ɪn keɪs/", tag: "连词词组", meaning: "以防；万一", expansion: "用于说明采取预防措施的原因。", example: "Take water in case you get thirsty.", exampleMeaning: "带上水，以防口渴。" }] },
+    { subject: "英语", knowledgePoint: "语篇衔接", type: "single_choice", difficulty: 3, title: "选择连接词", prompt: "Leo practised every day. ____, he improved his speaking skills greatly.", visual: "practice every day → better speaking", options: ["As a result", "However", "For example"], answer: "As a result", explanation: "前句是持续练习，后句是进步的结果，因此用 As a result。", activityKind: "grammar", estimatedMinutes: 4, vocabulary: [{ term: "as a result", phonetic: "/æz ə rɪˈzʌlt/", tag: "连接词组", meaning: "因此；结果", expansion: "连接原因之后产生的结果。", example: "It rained. As a result, the game was cancelled.", exampleMeaning: "下雨了，因此比赛取消了。" }, { term: "improve", phonetic: "/ɪmˈpruːv/", tag: "动词", meaning: "提高；改善", expansion: "improve a skill 表示提高一项技能。", example: "Reading can improve your writing.", exampleMeaning: "阅读能提高写作能力。" }] },
+    { subject: "英语", knowledgePoint: "人物动机推断", type: "single_choice", difficulty: 3, title: "绘本：The Extra Ticket", prompt: "Kai won two science-show tickets. His best friend was ill, so Kai gave the extra ticket to a new classmate who often ate lunch alone. Why did Kai choose the new classmate?", visual: "📖  two tickets → friend ill → invite a lonely classmate", options: ["He wanted the classmate to feel included.", "He wanted to sell the ticket.", "He disliked the science show."], answer: "He wanted the classmate to feel included.", explanation: "新同学经常独自吃午饭，Kai 邀请他体现了关心和接纳。", activityKind: "storybook", estimatedMinutes: 6, vocabulary: [{ term: "extra", phonetic: "/ˈekstrə/", tag: "形容词", meaning: "额外的；多出的", expansion: "an extra ticket 表示一张多出的票。", example: "I have an extra ticket.", exampleMeaning: "我有一张多出的票。" }, { term: "feel included", phonetic: "/fiːl ɪnˈkluːdɪd/", tag: "动词词组", meaning: "感到被接纳", expansion: "include 表示把某人纳入群体。", example: "Kind words help everyone feel included.", exampleMeaning: "友善的话让每个人都感到被接纳。" }] },
+    { subject: "英语", knowledgePoint: "过去时叙事", type: "single_choice", difficulty: 3, title: "补全旅行日记", prompt: "We arrived late because the bus ____ down on the way to the museum.", visual: "🚌 → ⚠️ → late", options: ["broke", "breaks", "was breaking"], answer: "broke", explanation: "arrived 表明叙述过去发生的事情，break down 的过去式是 broke down。", activityKind: "grammar", estimatedMinutes: 4, vocabulary: [{ term: "break down", phonetic: "/breɪk daʊn/", tag: "动词词组", meaning: "（机器或车辆）出故障", expansion: "过去式为 broke down。", example: "Our bus broke down yesterday.", exampleMeaning: "我们的公交车昨天出故障了。" }] },
+  ],
+  G8: [
+    { subject: "英语", knowledgePoint: "汉译英", type: "ordering", difficulty: 3, title: "表达环保行动", prompt: "把“如果每个人都少用塑料袋，我们就能减少垃圾”排列成英文。", visual: "less plastic → less waste", options: ["If everyone uses", "fewer plastic bags,", "we can", "reduce waste."], answer: "If everyone uses | fewer plastic bags, | we can | reduce waste.", explanation: "可数名词 bags 用 fewer 修饰；条件从句用一般现在时。", activityKind: "cn_to_en", estimatedMinutes: 5, vocabulary: [{ term: "fewer plastic bags", phonetic: "/ˈfjuːə ˈplæstɪk bæɡz/", tag: "数量词组", meaning: "更少的塑料袋", expansion: "fewer 修饰可数名词，less 修饰不可数名词。", example: "We should use fewer plastic bags.", exampleMeaning: "我们应该少用塑料袋。" }, { term: "reduce waste", phonetic: "/rɪˈdjuːs weɪst/", tag: "动词词组", meaning: "减少垃圾/浪费", expansion: "reduce 表示使数量下降。", example: "Reusing things can reduce waste.", exampleMeaning: "重复使用物品能减少垃圾。" }] },
+    { subject: "英语", knowledgePoint: "英译汉", type: "single_choice", difficulty: 3, title: "理解复合句", prompt: "“Although the task was difficult, the team completed it ahead of schedule.” 的准确意思是？", visual: "hard task → teamwork → early finish", options: ["尽管任务很难，团队仍提前完成了。", "因为任务简单，团队推迟完成了。", "团队在计划开始前取消了任务。"], answer: "尽管任务很难，团队仍提前完成了。", explanation: "although 表示让步“尽管”，ahead of schedule 表示提前。", activityKind: "en_to_cn", estimatedMinutes: 4, vocabulary: [{ term: "although", phonetic: "/ɔːlˈðəʊ/", tag: "连词", meaning: "尽管；虽然", expansion: "引导让步状语从句。", example: "Although it was raining, we kept walking.", exampleMeaning: "虽然下雨，我们仍继续走。" }, { term: "ahead of schedule", phonetic: "/əˈhed əv ˈʃedjuːl/", tag: "时间词组", meaning: "提前", expansion: "相反表达是 behind schedule。", example: "We finished ahead of schedule.", exampleMeaning: "我们提前完成了。" }] },
+    { subject: "英语", knowledgePoint: "句子改写", type: "single_choice", difficulty: 3, title: "保持句意不变", prompt: "Which sentence has the closest meaning to “The box is too heavy for Mia to carry”?", visual: "📦 too heavy → Mia cannot carry it", options: ["The box is so heavy that Mia cannot carry it.", "Mia carried the box because it was heavy.", "The box is light enough for Mia to carry."], answer: "The box is so heavy that Mia cannot carry it.", explanation: "too...to... 可转换为 so...that...cannot，意思都是“太……而不能……”。", activityKind: "grammar", estimatedMinutes: 5, vocabulary: [{ term: "too...to...", phonetic: "/tuː ... tə/", tag: "句型", meaning: "太……而不能……", expansion: "表达某种程度导致动作无法完成。", example: "The water is too hot to drink.", exampleMeaning: "水太烫，不能喝。" }, { term: "so...that...", phonetic: "/səʊ ... ðæt/", tag: "句型", meaning: "如此……以至于……", expansion: "that 后接结果从句。", example: "It was so dark that we could not see.", exampleMeaning: "天太黑了，我们看不见。" }] },
+    { subject: "英语", knowledgePoint: "观点与证据", type: "single_choice", difficulty: 3, title: "阅读：Should Schools Grow Food?", prompt: "A school garden gives students fresh food and lets them observe plant growth. However, it also needs time, water and regular care. Which conclusion is best supported?", visual: "📖  benefits: food + science | cost: time + care", options: ["A school garden is useful, but it needs a clear care plan.", "Every school garden always saves money.", "Students should stop learning science indoors."], answer: "A school garden is useful, but it needs a clear care plan.", explanation: "文章同时给出益处和维护成本，第一项完整平衡了两方面信息。", activityKind: "storybook", estimatedMinutes: 7, vocabulary: [{ term: "observe", phonetic: "/əbˈzɜːv/", tag: "动词", meaning: "观察", expansion: "observe 强调认真、有目的地看。", example: "Students observe plant growth.", exampleMeaning: "学生观察植物生长。" }, { term: "regular care", phonetic: "/ˈreɡjələ keə/", tag: "名词词组", meaning: "定期照料", expansion: "regular 表示有规律的。", example: "The garden needs regular care.", exampleMeaning: "花园需要定期照料。" }, { term: "be supported", phonetic: "/bi səˈpɔːtɪd/", tag: "被动表达", meaning: "得到支持；有依据", expansion: "阅读题中指结论能被文本证据支持。", example: "The idea is supported by two facts.", exampleMeaning: "这个观点有两个事实支持。" }] },
+    { subject: "英语", knowledgePoint: "论证逻辑", type: "single_choice", difficulty: 3, title: "判断证据是否充分", prompt: "A student says, “Online homework is always better because my cousin likes it.” What is the main weakness in the argument?", visual: "claim → one person's opinion → ?", options: ["It uses one person's preference as evidence for everyone.", "It gives too many research results.", "It compares two clearly measured groups."], answer: "It uses one person's preference as evidence for everyone.", explanation: "一个人的偏好不能代表所有学生，论据范围过小，无法支持“always better”的强结论。", activityKind: "reading", estimatedMinutes: 6, vocabulary: [{ term: "argument", phonetic: "/ˈɑːɡjəmənt/", tag: "名词", meaning: "论点；论证", expansion: "阅读中要区分 claim 和 supporting evidence。", example: "The argument needs stronger evidence.", exampleMeaning: "这个论证需要更有力的证据。" }, { term: "preference", phonetic: "/ˈprefrəns/", tag: "名词", meaning: "偏好", expansion: "个人偏好不等于普遍事实。", example: "One preference cannot represent everyone.", exampleMeaning: "一个人的偏好不能代表所有人。" }] },
+  ],
+};
+
+const companionCourses: Record<string, string[]> = {
+  G1: ["语言表达", "数量与空间", "科学探索", "健康习惯", "社会认知", "艺术创造"],
+  G2: ["语言表达", "数量与空间", "科学探索", "健康习惯", "社会认知", "艺术创造"],
+  G3: ["语文", "数学", "科学", "阅读与表达", "综合素养", "健康习惯"],
+  G4: ["语文", "数学", "科学", "阅读与表达", "综合素养", "健康习惯"],
+  G5: ["语文", "数学", "科学", "阅读与表达", "综合素养", "健康习惯"],
+  G6: ["语文", "数学", "科学", "阅读与表达", "综合素养", "健康习惯"],
+  G7: ["语文", "数学", "科学", "阅读与表达", "综合素养", "健康习惯"],
+  G8: ["语文", "数学", "科学", "阅读与表达", "综合素养", "健康习惯"],
+};
+
+const primaryHealthDaily: Record<string, Draft> = {
+  G3: { subject: "健康习惯", knowledgePoint: "均衡饮食", type: "single_choice", difficulty: 1, title: "午餐怎么搭配", prompt: "哪一份午餐的食物种类更均衡？", visual: "午餐盘 🍽️", options: ["米饭、鸡蛋、青菜和水果", "只有薯片和汽水", "只有一大碗白米饭"], answer: "米饭、鸡蛋、青菜和水果", explanation: "主食、蛋白质、蔬菜和水果搭配，营养种类更丰富。", activityKind: "practice", estimatedMinutes: 3 },
+  G4: { subject: "健康习惯", knowledgePoint: "用眼卫生", type: "single_choice", difficulty: 1, title: "让眼睛休息", prompt: "连续看屏幕一段时间后，哪种做法更合适？", visual: "👀 💻 ⏰", options: ["看看远处并活动身体", "关灯继续看", "把屏幕贴得更近"], answer: "看看远处并活动身体", explanation: "定时远眺、活动身体，并保持合适距离，有助于减少眼睛疲劳。", activityKind: "practice", estimatedMinutes: 3 },
+  G5: { subject: "健康习惯", knowledgePoint: "安全用药", type: "single_choice", difficulty: 2, title: "看懂药品提醒", prompt: "如果药品包装写着“请在成人指导下使用”，孩子应该怎么做？", visual: "💊 📋 👨‍👩‍👧", options: ["请家长或医生确认后再使用", "自己增加用量", "和同学交换着吃"], answer: "请家长或医生确认后再使用", explanation: "儿童用药需要由家长或专业人员确认，不能自行增减药量。", activityKind: "reading", estimatedMinutes: 4 },
+  G6: { subject: "健康习惯", knowledgePoint: "运动安排", type: "single_choice", difficulty: 2, title: "安排运动计划", prompt: "为了让运动更安全，哪一项计划更合理？", visual: "🏃 💧 🧘", options: ["先热身，运动中补水，结束后拉伸", "空腹做高强度运动两小时", "身体疼痛时坚持冲刺"], answer: "先热身，运动中补水，结束后拉伸", explanation: "热身、适量补水和拉伸是更完整、安全的运动流程。", activityKind: "practice", estimatedMinutes: 4 },
+  G7: { subject: "健康习惯", knowledgePoint: "睡眠与学习效率", type: "single_choice", difficulty: 2, title: "从记录中作判断", prompt: "小林连续三天睡眠不足，课堂专注时间从35分钟降到18分钟。最合理的判断是？", visual: "睡眠 ↓ → 专注时间 ↓", options: ["睡眠不足可能影响专注", "睡得越少一定学得越好", "专注变化与任何习惯都无关"], answer: "睡眠不足可能影响专注", explanation: "记录显示两者同时变化，可以提出“可能有关”的合理判断，但不能仅凭三天数据断言唯一原因。", activityKind: "reading", estimatedMinutes: 4 },
+  G8: { subject: "健康习惯", knowledgePoint: "健康信息辨别", type: "single_choice", difficulty: 3, title: "判断信息可信度", prompt: "网上有人说“只喝一种果汁就能预防所有疾病”。哪种处理方式最可靠？", visual: "网络说法 → 查证来源 → 咨询专业人员", options: ["查看权威健康机构资料并咨询专业人员", "只看转发次数决定真假", "马上停止正常饮食"], answer: "查看权威健康机构资料并咨询专业人员", explanation: "绝对化健康结论通常需要警惕，应核对权威来源和专业建议。", activityKind: "reading", estimatedMinutes: 5 },
+};
+
+function withMeta(question: QuestionItem, index: number, minutes = 3): QuestionItem {
+  return { ...question, id: `${question.id}-daily-${index + 1}`, activityKind: question.activityKind ?? "practice", estimatedMinutes: question.estimatedMinutes ?? minutes };
+}
+
+export function getDailyCurriculum(grade: string, day = 1): QuestionItem[] {
+  const englishName = englishSubject(grade);
+  const coreEnglish = getCourseQuestions(englishName, grade).slice(0, 3).map((question, index) => withMeta(question, index, 3));
+  const addedEnglish = (englishDaily[grade] ?? englishDaily.G3)
+    .filter((draft) => !(["G1", "G2"].includes(grade) && (draft.activityKind === "trace" || draft.activityKind === "phonics")))
+    .map((draft, index) => makeEnglish(grade, index, draft));
+  const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, index) => {
+    // 基础题：健康习惯优先用 primaryHealthDaily 的每日健康题，其余科目用基础题库
+    const base: QuestionItem =
+      course === "健康习惯" && primaryHealthDaily[grade]
+        ? { ...primaryHealthDaily[grade], id: `${grade.toLowerCase()}-daily-health`, grade, eyebrow: `${grade} · 健康习惯`, source: "local_core" }
+        : withMeta(getCourseQuestion(course, grade), index + 8, index === 1 ? 4 : 3);
+    // 每日补充题：subjectDailyExtras 每科每年级 3 题，让每日课程每科达到 4 站
+    const extras = (subjectDailyExtras[course]?.[grade] ?? []).map((draft, extraIndex) =>
+      withMeta({ ...draft, id: `${grade.toLowerCase()}-${course}-daily-${extraIndex + 1}`, grade, eyebrow: `${grade} · ${course}`, source: "local_core" }, index + 8, 3),
+    );
+    return [base, ...extras];
+  });
+  const dailyBase = arrangeForStudyDay([...coreEnglish, ...addedEnglish, ...companion], day);
+  return ["G1", "G2"].includes(grade) ? [...makeAlphabetJourney(grade, day), ...dailyBase] : dailyBase;
+}
+
+export function auditDailyCurriculum() {
+  return Object.keys(englishDaily).map((grade) => {
+    const items = getDailyCurriculum(grade);
+    const englishCount = items.filter((item) => item.subject.includes("英语")).length;
+    return { grade, total: items.length, englishCount, englishRatio: englishCount / items.length, minutes: items.reduce((sum, item) => sum + (item.estimatedMinutes ?? 3), 0) };
+  });
+}
+
+export function auditStudyProgram() {
+  return Object.keys(englishDaily).flatMap((grade) => Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => {
+    const day = index + 1;
+    const items = getDailyCurriculum(grade, day);
+    const ids = new Set(items.map((item) => item.id));
+    return { grade, day, total: items.length, uniqueIds: ids.size, taggedForDay: items.every((item) => item.id.endsWith(`-day-${day}`)) };
+  }));
+}
+
+const upperGradeRegression = /声母|韵母|孤立拼音|字母大小写|声音与字母|字母音|首音找单词|I can do it|Do you like apples/i;
+
+export function auditGradeDifficulty() {
+  const englishFloors: Record<string, number> = { G1: 1, G2: 1, G3: 1, G4: 1, G5: 1.5, G6: 1.8, G7: 2, G8: 2 };
+  return Object.keys(englishDaily).map((grade) => {
+    const englishItems = getDailyCurriculum(grade).filter((item) => item.subject.includes("英语"));
+    const averageDifficulty = englishItems.reduce((sum, item) => sum + item.difficulty, 0) / Math.max(1, englishItems.length);
+    const regressions = ["G4", "G5", "G6", "G7", "G8"].includes(grade)
+      ? englishItems.filter((item) => upperGradeRegression.test(`${item.title} ${item.knowledgePoint}`)).map((item) => item.title)
+      : [];
+    return { grade, averageDifficulty, floor: englishFloors[grade], regressions };
+  });
+}
+
+// 防止后续补题时再次把明显超出当前小学年级的数学概念混入每日路线。
+const outOfGradeMathPatterns: Record<string, RegExp> = {
+  G3: /小数|分数|面积|方程|百分数|比例|勾股|函数/,
+  G4: /小数|分数|面积|方程|百分数|比例|勾股|函数/,
+  G5: /方程|百分数|比例|圆面积|勾股|函数/,
+  G6: /百分数|比例|圆面积|勾股|函数/,
+  G7: /方程|圆面积|勾股|函数/,
+  G8: /勾股|一次函数|二次函数/,
+};
+
+export function auditMathGradeAlignment() {
+  return Object.keys(englishDaily).map((grade) => {
+    const pattern = outOfGradeMathPatterns[grade];
+    const violations = getDailyCurriculum(grade)
+      .filter((item) => item.subject === "数学" && pattern.test(`${item.title} ${item.knowledgePoint} ${item.prompt}`))
+      .map((item) => item.title);
+    return { grade, violations };
+  });
+}
+
+// 每日课程 = 英语 8 站 + 六门伴随学科各 4 站（基础1 + subjectDailyExtras 3）；要求：总站数 ≥14、英语 ≥8、时长 ≥40 分钟
+const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishCount < 8 || plan.minutes < 40);
+if (invalidPlans.length) throw new Error(`每日课程密度不达标：${invalidPlans.map((plan) => plan.grade).join(", ")}`);
+const invalidStudyDays = auditStudyProgram().filter((plan) => plan.total < 14 || plan.uniqueIds !== plan.total || !plan.taggedForDay);
+if (invalidStudyDays.length) throw new Error(`90天排课异常：${invalidStudyDays.slice(0, 5).map((plan) => `${plan.grade}第${plan.day}天`).join("、")}`);
+const misalignedGrades = auditGradeDifficulty().filter((item) => item.averageDifficulty < item.floor || item.regressions.length > 0);
+if (misalignedGrades.length) throw new Error(`年级难度回退：${misalignedGrades.map((item) => `${item.grade}${item.regressions.length ? `(${item.regressions.join("、")})` : ""}`).join(", ")}`);
+const outOfGradeMath = auditMathGradeAlignment().filter((item) => item.violations.length > 0);
+if (outOfGradeMath.length) throw new Error(`数学内容超出年级：${outOfGradeMath.map((item) => `${item.grade}(${item.violations.join("、")})`).join(", ")}`);
