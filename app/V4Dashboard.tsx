@@ -9,6 +9,7 @@ import { getCourseCatalog } from "../data/courseCatalog";
 import { TtsButton } from "./components/TtsButton";
 import { PictureBookLibrary } from "./components/PictureBookLibrary";
 import StickerShop from "./components/StickerShop";
+import ForestHome from "./components/ForestHome";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
@@ -27,7 +28,7 @@ const grades: Grade[] = [
 
 const navGroups = [
   { label: "学习列车", items: [["🏡", "首页"], ["☀️", "今日学习"], ["🧩", "课程中心"], ["📖", "绘本馆"], ["🗺️", "学习计划"]] },
-  { label: "森林乐园", items: [["🌷", "复习花园"], ["✨", "贴纸册"], ["🛡️", "家长中心"]] },
+  { label: "森林乐园", items: [["🌷", "复习花园"], ["✨", "贴纸册"], ["🏡", "森林家园"], ["🛡️", "家长中心"]] },
 ];
 
 function getTaskLook(question: QuestionItem) {
@@ -389,10 +390,11 @@ export function V4Dashboard() {
           {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} totalTasks={dailyQuestions.length} onGarden={() => goTo("复习花园")} />}
           {activeNav === "绘本馆" && <PictureBookLibrary grade={selectedGrade} />}
           {activeNav === "贴纸册" && <StickerShop coins={coinBalance} onSpend={spendCoins} />}
+          {activeNav === "森林家园" && <ForestHome coins={coinBalance} onSpend={spendCoins} />}
 
           {activeNav === "学习计划" && <StudyPlan day={selectedDay} questions={dailyQuestions} completed={completedTasks} progress={dailyProgress} grade={selectedGrade} onDayChange={changeStudyDay} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
 
-          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
+          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "森林家园", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
           {activeQuestion && <LessonModal question={activeQuestion} notice={practiceNotice} selectedAnswer={selectedAnswer} answerState={answerState} aiLoading={aiLoadingId !== null} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onSmartNext={continueWithSmartPractice} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); setPracticeNotice(null); }} />}
@@ -400,7 +402,7 @@ export function V4Dashboard() {
       </main>
 
       <nav className="mobile-nav" aria-label="手机导航">
-        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["✨", "贴纸", "贴纸册"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
+        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["✨", "贴纸", "贴纸册"], ["🏠", "家园", "森林家园"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
       </nav>
     </div>
   );
