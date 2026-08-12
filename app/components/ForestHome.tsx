@@ -3,22 +3,39 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Area = "indoor" | "garden";
-type HomeItem = { id: string; name: string; icon: string; price: number; area: Area; note: string };
+type HomeItem = { id: string; name: string; asset: string; price: number; area: Area; note: string };
 
-const ITEMS: HomeItem[] = [
-  { id: "desk", name: "森林书桌", icon: "🪵", price: 8, area: "indoor", note: "适合写字和画画" },
-  { id: "bookshelf", name: "绘本书架", icon: "📚", price: 10, area: "indoor", note: "把喜欢的故事放进来" },
-  { id: "sofa", name: "云朵沙发", icon: "🛋️", price: 12, area: "indoor", note: "软绵绵的休息角" },
-  { id: "lamp", name: "蘑菇台灯", icon: "🍄", price: 6, area: "indoor", note: "给阅读角加一点暖光" },
-  { id: "rug", name: "叶子地毯", icon: "🍃", price: 7, area: "indoor", note: "铺在小屋的木地板上" },
-  { id: "bed", name: "宠物小床", icon: "🧺", price: 9, area: "indoor", note: "伙伴们喜欢的小窝" },
-  { id: "flower", name: "雏菊花坛", icon: "🌼", price: 6, area: "garden", note: "让花园开满小花" },
-  { id: "tree", name: "苹果树", icon: "🌳", price: 12, area: "garden", note: "春天发芽，秋天结果" },
-  { id: "swing", name: "木头秋千", icon: "🛝", price: 15, area: "garden", note: "和动物伙伴一起玩" },
-  { id: "pond", name: "睡莲池塘", icon: "🪷", price: 14, area: "garden", note: "小青蛙偶尔来做客" },
-  { id: "fence", name: "白色围栏", icon: "🏡", price: 8, area: "garden", note: "围出温柔的小花园" },
-  { id: "windmill", name: "彩色风车", icon: "🎡", price: 7, area: "garden", note: "风吹过时轻轻转动" },
+const INDOOR_NAMES = [
+  "森林书桌", "圆圆阅读椅", "云朵沙发", "橡木书架", "拱门绘本柜", "蘑菇台灯",
+  "叶子地毯", "宠物小床", "森林木床", "床边小柜", "森林衣柜", "圆圆茶桌",
+  "软垫凳子", "木头玩具箱", "小画架", "儿童钢琴", "暖光落地灯", "叶子时钟",
+  "森林相框", "格子窗帘", "陶盆绿植", "鲜花花瓶", "收纳藤篮", "森林小黑板",
+  "阅读帐篷", "摇摇木马", "玩具火车", "绘本一摞", "圆形坐垫", "木头衣帽架",
 ];
+
+const GARDEN_NAMES = [
+  "雏菊花坛", "郁金花坛", "小苹果树", "樱花树", "圆圆花灌木", "修剪绿篱",
+  "白色围栏", "拱形花园门", "石板小路", "花园木桥", "睡莲池塘", "小鸟浴台",
+  "木头长椅", "双人秋千", "蓝色滑梯", "野餐帐篷", "彩色风车", "森林风车屋",
+  "暖光路灯", "空白指示牌", "森林鸟屋", "绿色浇水壶", "木头手推车", "野餐篮和餐布",
+  "蔬菜小园", "蘑菇家族", "向日葵丛", "树桩花盆", "小火车花盆", "彩虹花架",
+];
+
+function createItems(names: string[], area: Area): HomeItem[] {
+  return names.map((name, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return {
+      id: `${area}-${number}`,
+      name,
+      asset: `/home-assets/items/${area}-${number}.png`,
+      price: 5 + (index % 6) * 2,
+      area,
+      note: area === "indoor" ? "装进温暖的森林小屋" : "摆进阳光下的秘密花园",
+    };
+  });
+}
+
+const ITEMS: HomeItem[] = [...createItems(INDOOR_NAMES, "indoor"), ...createItems(GARDEN_NAMES, "garden")];
 
 const PETS = [
   { id: "dog", name: "小狗", icon: "🐶" },
@@ -111,7 +128,6 @@ export default function ForestHome({ coins, onSpend }: { coins: number; onSpend:
 
       <div className="home-workbench">
         <div className={`home-scene ${area}`}>
-          <div className="home-sky" aria-hidden="true"><i /><i /><span>{area === "indoor" ? "☀️" : "☁️"}</span></div>
           <div className="home-scene-label"><strong>{area === "indoor" ? "Leo 的阳光小屋" : "Leo 的秘密花园"}</strong><small>点选装饰后，再点空位置摆放</small></div>
           <button className="home-pet" onClick={() => setNotice(`${currentPet.name}开心地向你挥挥手！`)} type="button" aria-label={`和${currentPet.name}互动`}><span>{currentPet.icon}</span><i>♥</i></button>
           <div className="home-slots">
@@ -126,7 +142,7 @@ export default function ForestHome({ coins, onSpend }: { coins: number; onSpend:
                   onDrop={(event) => { event.preventDefault(); placeInSlot(index, event.dataTransfer.getData("text/plain")); }}
                   type="button"
                   aria-label={item ? `${item.name}，点击收回` : `空位置${index + 1}`}
-                >{item ? <><span>{item.icon}</span><small>{item.name}</small></> : <span className="slot-plus">＋</span>}</button>
+                >{item ? <><img src={item.asset} alt="" /><small>{item.name}</small></> : <span className="slot-plus">＋</span>}</button>
               );
             })}
           </div>
@@ -144,7 +160,7 @@ export default function ForestHome({ coins, onSpend }: { coins: number; onSpend:
         <div className="home-shop-grid">
           {areaItems.map((item) => {
             const isOwned = owned.includes(item.id);
-            return <button className={`${isOwned ? "owned" : ""} ${selectedItem === item.id ? "selected" : ""}`} draggable={isOwned} key={item.id} onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)} onClick={() => buy(item)} type="button"><span>{item.icon}</span><div><strong>{item.name}</strong><small>{item.note}</small></div><em>{isOwned ? "摆放" : `${item.price} 🪙`}</em></button>;
+            return <button className={`${isOwned ? "owned" : ""} ${selectedItem === item.id ? "selected" : ""}`} draggable={isOwned} key={item.id} onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)} onClick={() => buy(item)} type="button"><span><img src={item.asset} alt="" /></span><div><strong>{item.name}</strong><small>{item.note}</small></div><em>{isOwned ? "摆放" : `${item.price} 🪙`}</em></button>;
           })}
         </div>
       </section>
