@@ -12,6 +12,7 @@ import StickerShop from "./components/StickerShop";
 import ForestHome from "./components/ForestHome";
 import WordTrainGame from "./components/WordTrainGame";
 import BackgroundMusic from "./components/BackgroundMusic";
+import DrawingStudio from "./components/DrawingStudio";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string; introduction: string; learning: string; goal: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
@@ -30,7 +31,7 @@ const grades: Grade[] = [
 
 const navGroups = [
   { label: "学习列车", items: [["🏡", "首页"], ["☀️", "今日学习"], ["🧩", "课程中心"], ["📖", "绘本馆"], ["🗺️", "学习计划"]] },
-  { label: "森林乐园", items: [["🚂", "单词小火车"], ["🌷", "复习花园"], ["✨", "贴纸册"], ["🏡", "森林家园"], ["🛡️", "家长中心"]] },
+  { label: "森林乐园", items: [["🚂", "单词小火车"], ["🎨", "森林小画室"], ["🌷", "复习花园"], ["✨", "贴纸册"], ["🏡", "森林家园"], ["🛡️", "家长中心"]] },
 ];
 
 function getTaskLook(question: QuestionItem) {
@@ -471,10 +472,11 @@ export function V4Dashboard() {
           {activeNav === "贴纸册" && <StickerShop coins={coinBalance} onSpend={spendCoins} />}
           {activeNav === "森林家园" && <ForestHome coins={coinBalance} onSpend={spendCoins} />}
           {activeNav === "单词小火车" && <WordTrainGame grade={selectedGrade} coins={coinBalance} onReward={rewardCoins} />}
+          {activeNav === "森林小画室" && <DrawingStudio coins={coinBalance} onReward={rewardCoins} />}
 
           {activeNav === "学习计划" && <StudyPlan day={selectedDay} unlockedDay={unlockedDay} questions={dailyQuestions} completed={completedTasks} progress={dailyProgress} grade={selectedGrade} onDayChange={changeStudyDay} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
 
-          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "森林家园", "单词小火车", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
+          {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "森林家园", "单词小火车", "森林小画室", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
           {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
           {dailyGift > 0 && <DailyGiftModal amount={dailyGift} day={unlockedDay} onClose={() => setDailyGift(0)} />}
@@ -483,7 +485,7 @@ export function V4Dashboard() {
       </main>
 
       <nav className="mobile-nav" aria-label="手机导航">
-        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🚂", "单词", "单词小火车"], ["✨", "贴纸", "贴纸册"], ["🏠", "家园", "森林家园"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
+        {[["🏡", "首页", "首页"], ["☀️", "今日", "今日学习"], ["🧩", "课程", "课程中心"], ["📖", "绘本", "绘本馆"], ["🚂", "单词", "单词小火车"], ["🎨", "画画", "森林小画室"], ["✨", "贴纸", "贴纸册"], ["🏠", "家园", "森林家园"], ["🌷", pendingWrongCount > 0 ? `复习${pendingWrongCount}` : "复习", "复习花园"], ["🛡️", "我的", "家长中心"]].map(([icon, label, target]) => <button className={activeNav === target ? "active" : ""} key={target} onClick={() => goTo(target)} type="button"><span>{icon}</span>{label}</button>)}
       </nav>
       <BackgroundMusic />
     </div>
