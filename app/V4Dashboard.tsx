@@ -13,19 +13,19 @@ import ForestHome from "./components/ForestHome";
 import WordTrainGame from "./components/WordTrainGame";
 import BackgroundMusic from "./components/BackgroundMusic";
 
-type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string };
+type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string; introduction: string; learning: string; goal: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
 type WrongRecord = { question: QuestionItem; selectedAnswer: string; attempts: number; mastered: boolean; lastWrongAt: string; reviewStage?: number; nextReviewAt?: string | null };
 
 const grades: Grade[] = [
-  { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯" },
-  { id: "G2", age: "5–6岁", school: "幼小衔接", icon: "🌿", color: "leaf", focus: "思维、规则与入学准备" },
-  { id: "G3", age: "7岁", school: "小学一年级", icon: "🌼", color: "sunny", focus: "拼音、数感与学习习惯" },
-  { id: "G4", age: "8岁", school: "小学二年级", icon: "🌳", color: "sky", focus: "阅读、运算与观察" },
-  { id: "G5", age: "9岁", school: "小学三年级", icon: "🦋", color: "lilac", focus: "写作、应用题与英语" },
-  { id: "G6", age: "10岁", school: "小学四年级", icon: "🚂", color: "peach", focus: "理解、推理与表达" },
-  { id: "G7", age: "11岁", school: "小学五年级", icon: "✈️", color: "blue", focus: "综合应用与自主学习" },
-  { id: "G8", age: "12岁", school: "小学六年级", icon: "⛰️", color: "rose", focus: "归纳、衔接与能力进阶" },
+  { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯", introduction: "用游戏、儿歌和图画开启第一次系统学习。", learning: "语言表达、数量感知、生活常识、A–Z字母启蒙", goal: "敢开口、会观察，养成短时专注和自主完成的习惯" },
+  { id: "G2", age: "5–6岁", school: "幼小衔接", icon: "🌿", color: "leaf", focus: "思维、规则与入学准备", introduction: "在趣味任务中建立入学需要的基础能力。", learning: "完整表达、20以内数感、逻辑分类、字母拼读与描写", goal: "听懂规则、独立思考，为小学课堂做好衔接" },
+  { id: "G3", age: "7岁", school: "小学一年级", icon: "🌼", color: "sunny", focus: "拼音、数感与学习习惯", introduction: "对应一年级核心基础，建立稳定的读写算能力。", learning: "拼音识字、阅读起步、100以内数、英语基础词句", goal: "读准、写对、算清楚，形成每日学习节奏" },
+  { id: "G4", age: "8岁", school: "小学二年级", icon: "🌳", color: "sky", focus: "阅读、运算与观察", introduction: "从基础认知进入理解、运用和清楚表达。", learning: "段落阅读、词句运用、乘除法、生活应用题、英语对话", goal: "读懂题意、讲清思路，提升计算与观察能力" },
+  { id: "G5", age: "9岁", school: "小学三年级", icon: "🦋", color: "lilac", focus: "写作、应用题与英语", introduction: "进入知识扩展期，强化阅读、表达和综合运用。", learning: "篇章阅读、起步写作、多步应用题、英语语法与阅读", goal: "从会做走向会解释，能组织完整答案" },
+  { id: "G6", age: "10岁", school: "小学四年级", icon: "🚂", color: "peach", focus: "理解、推理与表达", introduction: "通过多步骤任务训练深度理解和逻辑推理。", learning: "概括与写作、运算定律、图形问题、英语篇章理解", goal: "提取关键信息，灵活选择方法并准确表达" },
+  { id: "G7", age: "11岁", school: "小学五年级", icon: "✈️", color: "blue", focus: "综合应用与自主学习", introduction: "知识难度和信息密度提高，培养自主解决问题。", learning: "深度阅读、说明表达、小数分数、复杂应用、英语推断", goal: "整合多条信息，形成检查、纠错和复习能力" },
+  { id: "G8", age: "12岁", school: "小学六年级", icon: "⛰️", color: "rose", focus: "归纳、衔接与能力进阶", introduction: "整合小学知识，为初中学习方式提前做好准备。", learning: "主题阅读、综合写作、比例几何、复杂推理、英语综合阅读", goal: "建立知识体系，提升归纳、迁移和自主规划能力" },
 ];
 
 const navGroups = [
@@ -502,7 +502,7 @@ function DailyGiftModal({ amount, day, onClose }: { amount: number; day: number;
 
 function GradeOnboarding({ selectedGrade, onSelect, onConfirm }: { selectedGrade: string; onSelect: (grade: string) => void; onConfirm: () => void }) {
   const selected = grades.find((grade) => grade.id === selectedGrade) ?? grades[2];
-  return <div className="grade-onboarding-backdrop"><section className="grade-onboarding" role="dialog" aria-modal="true" aria-labelledby="grade-onboarding-title"><header><span>🐶 小狗的森林学堂</span><small>先选起点，再开始每天的森林闯关</small><h1 id="grade-onboarding-title">为孩子选择合适的起点</h1><p>八级成长路线</p></header><div className="onboarding-grade-grid" aria-label="选择孩子的学习等级">{grades.map((grade) => { const active = selectedGrade === grade.id; return <button className={`onboarding-grade-card ${grade.color} ${active ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} aria-pressed={active} type="button"><span>{grade.icon}</span><div><strong>{grade.id}</strong><b>{grade.school}</b></div><small>{grade.age}</small><p>{grade.focus}</p>{active && <em>已选择 ✓</em>}</button>; })}</div><footer><div><span>{selected.icon}</span><div><small>孩子将从这里出发</small><strong>{selected.id} · {selected.school}</strong><p>{selected.age} · 第1天开始</p></div></div><button onClick={onConfirm} type="button">确认起点，开启第1关 →</button></footer></section></div>;
+  return <div className="grade-onboarding-backdrop"><section className="grade-onboarding" role="dialog" aria-modal="true" aria-labelledby="grade-onboarding-title"><header><span>🐶 小狗的森林学堂</span><small>先选起点，再开始每天的森林闯关</small><h1 id="grade-onboarding-title">为孩子选择合适的起点</h1><p>八级成长路线</p></header><div className="onboarding-grade-grid" aria-label="选择孩子的学习等级">{grades.map((grade) => { const active = selectedGrade === grade.id; return <button className={`onboarding-grade-card ${grade.color} ${active ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} aria-pressed={active} type="button"><span>{grade.icon}</span><div><strong>{grade.id}</strong><b>{grade.school}</b></div><small>{grade.age}</small><p>{grade.introduction}</p><i>{grade.focus}</i>{active && <em>已选择 ✓</em>}</button>; })}</div><section className={`selected-grade-intro ${selected.color}`} aria-live="polite"><span>{selected.icon}</span><div><small>当前选择 · {selected.age}</small><h2>{selected.id} · {selected.school}</h2><p>{selected.introduction}</p></div><dl><div><dt>📚 主要学习</dt><dd>{selected.learning}</dd></div><div><dt>🎯 阶段目标</dt><dd>{selected.goal}</dd></div></dl></section><footer><div><span>🚂</span><div><small>准备出发</small><strong>从第1天开始闯关</strong><p>以后每天解锁一个新关卡</p></div></div><button onClick={onConfirm} type="button">确认起点，开启第1关 →</button></footer></section></div>;
 }
 
 function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, onDayChange, onOpenTask, onGoToday }: { day: number; unlockedDay: number; questions: QuestionItem[]; completed: number[]; progress: Record<string, number[]>; grade: string; onDayChange: (day: number) => void; onOpenTask: (index: number) => void; onGoToday: () => void }) {
