@@ -182,7 +182,8 @@ export function V4Dashboard() {
       const savedGrade = window.localStorage.getItem("puppy-forest-grade");
       const gradeToUse = grades.some((grade) => grade.id === savedGrade) ? savedGrade as string : "G3";
       setSelectedGrade(gradeToUse);
-      const onboardingDone = window.localStorage.getItem("puppy-forest-onboarding-v1") === "done";
+      // V2 重新确认一次起点，避免旧测试版残留的默认 G3 直接跳过年级选择。
+      const onboardingDone = window.localStorage.getItem("puppy-forest-onboarding-v2") === "done";
       setShowGradeOnboarding(!onboardingDone);
       if (onboardingDone) {
         const todayUnlocked = loadDailyAdventure();
@@ -380,7 +381,7 @@ export function V4Dashboard() {
       window.localStorage.setItem("puppy-forest-grade", selectedGrade);
       window.localStorage.setItem("puppy-forest-study-day", "1");
       window.localStorage.setItem("puppy-forest-adventure", JSON.stringify({ unlockedDay: 1, lastVisit: today }));
-      window.localStorage.setItem("puppy-forest-onboarding-v1", "done");
+      window.localStorage.setItem("puppy-forest-onboarding-v2", "done");
       const rewardedCoins = claimDailyGift();
       if (rewardedCoins !== null) {
         setCoinBalance(rewardedCoins);
