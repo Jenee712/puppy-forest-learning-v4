@@ -89,6 +89,16 @@ function loadDailyAdventure() {
   }
 }
 
+function claimDailyGift() {
+  const today = localDateKey();
+  if (window.localStorage.getItem("puppy-forest-daily-gift-date") === today) return null;
+  const currentCoins = Math.max(0, Number(window.localStorage.getItem("puppy-forest-coins") ?? 0));
+  const rewardedCoins = currentCoins + 50;
+  window.localStorage.setItem("puppy-forest-coins", String(rewardedCoins));
+  window.localStorage.setItem("puppy-forest-daily-gift-date", today);
+  return rewardedCoins;
+}
+
 function saveStreak(data: { count: number; lastDate: string }) {
   try { window.localStorage.setItem("puppy-forest-streak", JSON.stringify(data)); } catch { /* ignore */ }
 }
@@ -138,6 +148,7 @@ export function V4Dashboard() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [unlockedDay, setUnlockedDay] = useState(1);
   const [dailyGift, setDailyGift] = useState(0);
+  const [showGradeOnboarding, setShowGradeOnboarding] = useState(true);
   const [showPlans, setShowPlans] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState<QuestionItem | null>(null);
   const [activeTaskIndex, setActiveTaskIndex] = useState<number | null>(null);
@@ -167,23 +178,24 @@ export function V4Dashboard() {
     setGreeting(getGreeting(new Date().getHours()));
     setStreak(loadStreak());
     try {
-      const today = localDateKey();
-      const todayUnlocked = loadDailyAdventure();
-      setUnlockedDay(todayUnlocked);
       const savedGrade = window.localStorage.getItem("puppy-forest-grade");
       const gradeToUse = grades.some((grade) => grade.id === savedGrade) ? savedGrade as string : "G3";
       setSelectedGrade(gradeToUse);
-      const savedDay = Math.max(1, Math.min(90, Number(window.localStorage.getItem("puppy-forest-study-day") ?? 1)));
-      const dayToUse = ["G1", "G2"].includes(gradeToUse) ? todayUnlocked : savedDay;
-      setSelectedDay(dayToUse);
-      window.localStorage.setItem("puppy-forest-study-day", String(dayToUse));
-      if (window.localStorage.getItem("puppy-forest-daily-gift-date") !== today) {
-        const currentCoins = Math.max(0, Number(window.localStorage.getItem("puppy-forest-coins") ?? 0));
-        const rewardedCoins = currentCoins + 50;
-        window.localStorage.setItem("puppy-forest-coins", String(rewardedCoins));
-        window.localStorage.setItem("puppy-forest-daily-gift-date", today);
+      const onboardingDone = window.localStorage.getItem("puppy-forest-onboarding-v1") === "done";
+      setShowGradeOnboarding(!onboardingDone);
+      if (onboardingDone) {
+        const todayUnlocked = loadDailyAdventure();
+        setUnlockedDay(todayUnlocked);
+        setSelectedDay(todayUnlocked);
+        window.localStorage.setItem("puppy-forest-study-day", String(todayUnlocked));
+        const rewardedCoins = claimDailyGift();
+        if (rewardedCoins !== null) {
         setCoinBalance(rewardedCoins);
         setDailyGift(50);
+        }
+      } else {
+        setSelectedDay(1);
+        setUnlockedDay(1);
       }
     } catch { /* 当前设备无法读取时使用默认等级 */ }
   }, []);
@@ -353,13 +365,32 @@ export function V4Dashboard() {
   const changeGrade = (grade: string) => {
     setSelectedGrade(grade);
     setSelectedCourse(null);
-    if (["G1", "G2"].includes(grade)) setSelectedDay(unlockedDay);
+    setSelectedDay(unlockedDay);
     try { window.localStorage.setItem("puppy-forest-grade", grade); } catch { /* ignore */ }
+  };
+
+  const finishGradeOnboarding = () => {
+    const today = localDateKey();
+    setSelectedDay(1);
+    setUnlockedDay(1);
+    setActiveNav("首页");
+    setShowGradeOnboarding(false);
+    try {
+      window.localStorage.setItem("puppy-forest-grade", selectedGrade);
+      window.localStorage.setItem("puppy-forest-study-day", "1");
+      window.localStorage.setItem("puppy-forest-adventure", JSON.stringify({ unlockedDay: 1, lastVisit: today }));
+      window.localStorage.setItem("puppy-forest-onboarding-v1", "done");
+      const rewardedCoins = claimDailyGift();
+      if (rewardedCoins !== null) {
+        setCoinBalance(rewardedCoins);
+        setDailyGift(50);
+      }
+    } catch { /* 无法保存时仍可继续体验 */ }
   };
 
   const changeStudyDay = (day: number) => {
     const requestedDay = Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(day)));
-    const nextDay = ["G1", "G2"].includes(selectedGrade) ? Math.min(requestedDay, unlockedDay) : requestedDay;
+    const nextDay = Math.min(requestedDay, unlockedDay);
     setSelectedDay(nextDay);
     setActiveQuestion(null);
     setActiveTaskIndex(null);
@@ -368,6 +399,7 @@ export function V4Dashboard() {
 
   return (
     <div className="app-shell">
+      {showGradeOnboarding && <GradeOnboarding selectedGrade={selectedGrade} onSelect={setSelectedGrade} onConfirm={finishGradeOnboarding} />}
       <aside className="sidebar">
         <div className="brand"><div className="brand-mark" aria-hidden="true">🐶</div><div><strong>小狗的森林学堂</strong><span>V4 · 简体字智能版</span></div></div>
         <nav aria-label="主导航">
@@ -399,7 +431,7 @@ export function V4Dashboard() {
                 <Image src="/og.png" alt="小狗、小猫和小兔在森林里一起学习，小火车从身边经过" width={1200} height={630} priority unoptimized />
                 <div className="visual-hero-action"><div><span>{greeting}，小鹿 Leo</span><strong>今天还有 {dailyQuestions.length - completedTasks.length} 个学习站</strong></div><button onClick={() => goTo("今日学习")} type="button">开始学习 <b>→</b></button></div>
               </section>
-              {["G1", "G2"].includes(selectedGrade) && <AdventureTimeline day={unlockedDay} progress={dailyProgress} grade={selectedGrade} onStart={() => { changeStudyDay(unlockedDay); goTo("今日学习"); }} />}
+              <AdventureTimeline day={unlockedDay} progress={dailyProgress} grade={selectedGrade} onStart={() => { changeStudyDay(unlockedDay); goTo("今日学习"); }} />
               <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} stationCount={dailyQuestions.length} minutes={dailyMinutes} onSelect={changeGrade} />
               <section className="lower-grid grade-content-enter" key={selectedGrade}>
                 <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} previewCount={3} onViewAll={() => goTo("今日学习")} />
@@ -468,6 +500,11 @@ function DailyGiftModal({ amount, day, onClose }: { amount: number; day: number;
   return <div className="modal-backdrop gift-backdrop" role="presentation" onMouseDown={onClose}><section className="daily-gift-modal" role="dialog" aria-modal="true" aria-labelledby="daily-gift-title" onMouseDown={(event) => event.stopPropagation()}><div className="gift-sparkles" aria-hidden="true">✦ ⭐ ✦</div><span className="gift-chest" aria-hidden="true">🎁</span><small>每日森林礼物</small><h2 id="daily-gift-title">欢迎来到第{day}关！</h2><strong>+{amount} <em>🪙</em></strong><p>今天的50枚学习金币已经放进你的口袋，可以购买贴纸、家具和花园装饰。</p><button onClick={onClose} type="button">开心收下 →</button></section></div>;
 }
 
+function GradeOnboarding({ selectedGrade, onSelect, onConfirm }: { selectedGrade: string; onSelect: (grade: string) => void; onConfirm: () => void }) {
+  const selected = grades.find((grade) => grade.id === selectedGrade) ?? grades[2];
+  return <div className="grade-onboarding-backdrop"><section className="grade-onboarding" role="dialog" aria-modal="true" aria-labelledby="grade-onboarding-title"><header><span>🐶 小狗的森林学堂</span><small>先选起点，再开始每天的森林闯关</small><h1 id="grade-onboarding-title">为孩子选择合适的起点</h1><p>八级成长路线</p></header><div className="onboarding-grade-grid" aria-label="选择孩子的学习等级">{grades.map((grade) => { const active = selectedGrade === grade.id; return <button className={`onboarding-grade-card ${grade.color} ${active ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} aria-pressed={active} type="button"><span>{grade.icon}</span><div><strong>{grade.id}</strong><b>{grade.school}</b></div><small>{grade.age}</small><p>{grade.focus}</p>{active && <em>已选择 ✓</em>}</button>; })}</div><footer><div><span>{selected.icon}</span><div><small>孩子将从这里出发</small><strong>{selected.id} · {selected.school}</strong><p>{selected.age} · 第1天开始</p></div></div><button onClick={onConfirm} type="button">确认起点，开启第1关 →</button></footer></section></div>;
+}
+
 function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, onDayChange, onOpenTask, onGoToday }: { day: number; unlockedDay: number; questions: QuestionItem[]; completed: number[]; progress: Record<string, number[]>; grade: string; onDayChange: (day: number) => void; onOpenTask: (index: number) => void; onGoToday: () => void }) {
   const groups = useMemo(() => {
     const map = new Map<string, { q: QuestionItem; idx: number }[]>();
@@ -497,7 +534,7 @@ function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, on
           {Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).map((studyDay) => {
             const done = progress[`${grade}-day-${studyDay}`]?.length ?? 0;
             const selected = studyDay === day;
-            const locked = ["G1", "G2"].includes(grade) && studyDay > unlockedDay;
+            const locked = studyDay > unlockedDay;
             return <button className={`${selected ? "selected " : ""}${done > 0 ? "started " : ""}${locked ? "locked" : ""}`} key={studyDay} onClick={() => onDayChange(studyDay)} aria-pressed={selected} disabled={locked} aria-label={locked ? `第${studyDay}天，尚未解锁` : `第${studyDay}天`} type="button"><strong>{studyDay}</strong>{locked ? <small>🔒</small> : done > 0 && <small>{done}站</small>}</button>;
           })}
         </div>
