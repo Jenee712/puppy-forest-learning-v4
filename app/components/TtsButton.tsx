@@ -10,11 +10,18 @@ type TtsButtonProps = {
   language?: TtsLanguage;
   playbackRate?: number;
   autoPlay?: boolean;
+  autoPlayKey?: string;
   audioSrc?: string;
   className?: string;
 };
 
 type Status = "idle" | "loading" | "playing" | "error";
+
+// React development checks and a few embedded browsers can mount the same
+// control twice in quick succession. Keep this guard outside the component so
+// a remount cannot start a second copy of the same automatic narration.
+const recentAutoPlays = new Map<string, number>();
+const AUTO_PLAY_DEDUP_MS = 2500;
 
 export function TtsButton({
   text,
@@ -23,6 +30,7 @@ export function TtsButton({
   language = "en",
   playbackRate = 1,
   autoPlay = false,
+  autoPlayKey,
   audioSrc,
   className = "",
 }: TtsButtonProps) {
@@ -34,6 +42,14 @@ export function TtsButton({
   useEffect(() => {
     if (!autoPlay || autoPlayStarted.current) return;
     autoPlayStarted.current = true;
+    const key = autoPlayKey ?? `${language}:${segment}:${text}`;
+    const now = Date.now();
+    const lastStartedAt = recentAutoPlays.get(key) ?? 0;
+    if (now - lastStartedAt < AUTO_PLAY_DEDUP_MS) return;
+    recentAutoPlays.set(key, now);
+    for (const [storedKey, startedAt] of recentAutoPlays) {
+      if (now - startedAt > 60_000) recentAutoPlays.delete(storedKey);
+    }
     playPreferredAudio(text, audioSrc, { language, segment, playbackRate })
       .then(() => setStatus("idle"))
       .catch(() => setStatus("idle"));
