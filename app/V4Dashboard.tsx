@@ -516,11 +516,16 @@ function LessonModal({ question, notice, selectedAnswer, answerState, aiLoading,
   const isEarlyLearner = /^(G1|G2|G3)(?:$|-)/.test(question.grade);
   const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
   const promptLanguage = getTtsLanguage(question.prompt);
-  const previewVocabulary = question.subject.includes("英语") ? question.vocabulary?.slice(0, 3) ?? [] : [];
+  const previewVocabulary = question.subject.includes("英语") && question.activityKind !== "phonics" ? question.vocabulary?.slice(0, 3) ?? [] : [];
   return <div className="modal-backdrop lesson-backdrop" role="presentation" onMouseDown={onClose}><section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="lesson-title" onMouseDown={(event) => event.stopPropagation()}><button className="lesson-close" aria-label="退出练习" onClick={onClose} type="button">×</button><div className="lesson-top"><span>🦌</span><div><small>{question.eyebrow}</small><strong id="lesson-title">{question.title}</strong></div><em>{question.source === "ai_generated" ? "智能变式题" : `${question.estimatedMinutes ?? 3}分钟`}</em></div><div className="lesson-progress"><i /></div>{notice && <div className={question.source === "ai_generated" ? "practice-notice ai" : "practice-notice"}><span>{question.source === "ai_generated" ? "✨" : "🛟"}</span>{notice}</div>}<div className={`question-card ${question.activityKind === "storybook" ? "storybook-question" : ""}`}>{question.mathModel ? <MathModel question={question} /> : <LearningVisual visual={question.visual} />}<div className="question-prompt"><h2>{question.prompt}</h2><TtsButton text={question.prompt} language={promptLanguage} playbackRate={promptLanguage === "en" ? englishPlaybackRate : 1} segment="sentence" label="听题目" autoPlay={isEarlyLearner} autoPlayKey={`question-${question.id}`} /></div>{previewVocabulary.length > 0 && <div className="preanswer-audio"><span>先听重点词</span>{previewVocabulary.map((item) => <TtsButton key={item.term} text={cleanEnglishSpeech(item.term)} playbackRate={englishPlaybackRate} segment="word" label={`听 ${item.term}`} />)}</div>}{question.activityKind === "trace" ? <TracePractice letters={question.traceLetter ?? question.visual} done={selectedAnswer === "done"} onDone={() => onSelect("done")} /> : <QuestionAnswer question={question} selectedAnswer={selectedAnswer} answerState={answerState} onSelect={onSelect} />}{answerState && <><FeedbackTone state={answerState} /><div className={answerState === "correct" ? "answer-feedback correct" : "answer-feedback wrong"}><span>{answerState === "correct" ? "🌟" : "🌱"}</span><div><p>{question.explanation}</p>{answerState === "wrong" && <small>正确答案：{formatAnswer(question.answer)}</small>}</div></div><OptionAnalysis question={question} selectedAnswer={selectedAnswer} /></>}{answerState && question.vocabulary && <DictionaryExpansion question={question} />}</div>{answerState ? <div className="lesson-actions"><button className="lesson-submit" onClick={onFinish} type="button">完成本题</button><button className="lesson-smart-next" onClick={onSmartNext} disabled={aiLoading} type="button">{aiLoading ? "智能出题中…" : "✨ 再来一道智能题"}</button></div> : <button className="lesson-submit" disabled={!selectedAnswer} onClick={onCheck} type="button">{question.activityKind === "trace" ? "完成描写" : "提交答案"}</button>}</section></div>;
 }
 
 function LearningVisual({ visual }: { visual: string }) {
+  if (visual.startsWith("LETTER_SOUND:")) {
+    const [, upper, lower] = visual.split(":");
+    const hue = ((upper.charCodeAt(0) - 65) * 23 + 92) % 360;
+    return <div className="question-visual letter-art sound-only" style={{ "--letter-hue": hue } as React.CSSProperties} aria-label={`字母 ${upper} ${lower}`}><span className="sound-wave one">♪</span><strong>{upper}</strong><strong>{lower}</strong><span className="sound-wave two">♫</span></div>;
+  }
   if (!visual.startsWith("LETTER_ART:")) return <span className="question-visual">{visual}</span>;
   const [, upper, lower, icon, word] = visual.split(":");
   const hue = ((upper.charCodeAt(0) - 65) * 23 + 92) % 360;
@@ -539,14 +544,30 @@ function OptionAnalysis({ question, selectedAnswer }: { question: QuestionItem; 
 }
 
 function TracePractice({ letters, done, onDone }: { letters: string; done: boolean; onDone: () => void }) {
+  const [upper, lower] = letters.trim().split(/\s+/);
+  const [completed, setCompleted] = useState<boolean[]>([false, false]);
+  const markComplete = (index: number) => {
+    setCompleted((current) => {
+      if (current[index]) return current;
+      const next = current.map((value, itemIndex) => itemIndex === index ? true : value);
+      if (next.every(Boolean)) onDone();
+      return next;
+    });
+  };
+  return <section className="trace-practice alphabet-trace"><header><span>✍️</span><div><strong>先大写，再小写</strong><small>沿着浅色字母慢慢描，完成两个字母获得两颗星</small></div><em>{completed.filter(Boolean).length}/2 ⭐</em></header><div className="trace-letter-grid"><TraceLetterBoard letter={upper} label="大写" completed={completed[0]} onComplete={() => markComplete(0)} /><TraceLetterBoard letter={lower} label="小写" completed={completed[1]} onComplete={() => markComplete(1)} /></div>{done && <div className="trace-complete">🌟 两个字母都描完啦，可以提交！</div>}</section>;
+}
+
+function TraceLetterBoard({ letter, label, completed, onComplete }: { letter: string; label: string; completed: boolean; onComplete: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingRef = useRef(false);
+  const lastPointRef = useRef<readonly [number, number] | null>(null);
+  const distanceRef = useRef(0);
   const point = (event: ReactPointerEvent<HTMLCanvasElement>) => { const canvas = canvasRef.current; if (!canvas) return [0, 0] as const; const rect = canvas.getBoundingClientRect(); return [(event.clientX - rect.left) * canvas.width / rect.width, (event.clientY - rect.top) * canvas.height / rect.height] as const; };
-  const start = (event: ReactPointerEvent<HTMLCanvasElement>) => { const context = canvasRef.current?.getContext("2d"); if (!context) return; drawingRef.current = true; const [x, y] = point(event); context.beginPath(); context.moveTo(x, y); event.currentTarget.setPointerCapture(event.pointerId); };
-  const move = (event: ReactPointerEvent<HTMLCanvasElement>) => { if (!drawingRef.current) return; const context = canvasRef.current?.getContext("2d"); if (!context) return; const [x, y] = point(event); context.lineWidth = 14; context.lineCap = "round"; context.strokeStyle = "#ef8aa8"; context.lineTo(x, y); context.stroke(); onDone(); };
-  const stop = () => { drawingRef.current = false; };
-  const clear = () => { const canvas = canvasRef.current; if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); };
-  return <section className="trace-practice"><div className="trace-board"><span>{letters}</span><canvas ref={canvasRef} width={900} height={320} onPointerDown={start} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} aria-label={`描写字母 ${letters}`} /></div><div><small>{done ? "已经留下笔迹，可以提交啦！" : "用手指或鼠标沿着浅色字母描一描"}</small><button onClick={clear} type="button">清除重写</button></div></section>;
+  const start = (event: ReactPointerEvent<HTMLCanvasElement>) => { const context = canvasRef.current?.getContext("2d"); if (!context) return; drawingRef.current = true; const nextPoint = point(event); lastPointRef.current = nextPoint; context.beginPath(); context.moveTo(...nextPoint); event.currentTarget.setPointerCapture(event.pointerId); };
+  const move = (event: ReactPointerEvent<HTMLCanvasElement>) => { if (!drawingRef.current) return; const context = canvasRef.current?.getContext("2d"); if (!context) return; const nextPoint = point(event); const lastPoint = lastPointRef.current; if (lastPoint) distanceRef.current += Math.hypot(nextPoint[0] - lastPoint[0], nextPoint[1] - lastPoint[1]); lastPointRef.current = nextPoint; context.lineWidth = 18; context.lineCap = "round"; context.lineJoin = "round"; context.strokeStyle = "#ef8aa8"; context.lineTo(...nextPoint); context.stroke(); if (distanceRef.current >= 260) onComplete(); };
+  const stop = () => { drawingRef.current = false; lastPointRef.current = null; };
+  const clear = () => { const canvas = canvasRef.current; if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height); distanceRef.current = 0; };
+  return <article className={`trace-letter-card ${completed ? "completed" : ""}`}><header><strong>{label}</strong><span>{completed ? "⭐ 完成" : "从 ● 开始"}</span></header><div className="trace-board"><span>{letter}</span><i aria-hidden="true">●</i><b aria-hidden="true">↘</b><canvas ref={canvasRef} width={420} height={300} onPointerDown={start} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} aria-label={`描写${label}字母 ${letter}`} /></div><button onClick={clear} type="button">↻ 清除重写</button></article>;
 }
 
 function MathModel({ question }: { question: QuestionItem }) {

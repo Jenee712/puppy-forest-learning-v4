@@ -108,6 +108,7 @@ function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
   const distractors = [alphabetSeeds[(letterIndex + 1) % 26], alphabetSeeds[(letterIndex + 2) % 26]];
   const subject = englishSubject(grade);
   const visual = `LETTER_ART:${seed.upper}:${seed.lower}:${seed.icon}:${seed.word}`;
+  const soundVisual = `LETTER_SOUND:${seed.upper}:${seed.lower}`;
   const vocabulary = [{
     term: seed.word,
     tag: "启蒙词汇",
@@ -128,7 +129,7 @@ function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
     {
       id: `${prefix}-recognize-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
       knowledgePoint: "字母认识", type: "single_choice", difficulty: 1,
-      title: `认识字母 ${seed.upper} ${seed.lower}`,
+      title: `第1关 · 认识 ${seed.upper} ${seed.lower}`,
       prompt: grade === "G1" ? `这位卡通字母朋友是谁？` : `哪一组是字母 ${seed.upper} 的大写和小写？`,
       visual, options: recognitionOptions, answer: recognitionAnswer,
       explanation: `${seed.upper} 是大写，${seed.lower} 是小写，它们是同一个字母。`,
@@ -138,9 +139,9 @@ function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
     {
       id: `${prefix}-phonics-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
       knowledgePoint: "字母拼读", type: "single_choice", difficulty: 1,
-      title: `${seed.upper} 的声音 ${seed.sound}`,
-      prompt: `听一听：${seed.upper} ${seed.lower}，${seed.sound}。哪个单词和今天的字母是好朋友？`,
-      visual, options: wordOptions, answer: wordOptions[0],
+      title: `第2关 · 听音找朋友`,
+      prompt: `听一听，哪个单词以字母 ${seed.upper} 开头？`,
+      visual: soundVisual, options: wordOptions, answer: wordOptions[0],
       explanation: `${seed.word} 以字母 ${seed.upper} 的声音开头：${seed.upper} ${seed.sound} ${seed.word}。`,
       optionExplanations: Object.fromEntries(wordOptions.map((option, index) => [option, index === 0 ? `${seed.word} 以字母 ${seed.upper} 开头。` : `${distractors[index - 1].word} 以字母 ${distractors[index - 1].upper} 开头。`])),
       activityKind: "phonics", estimatedMinutes: 4, vocabulary,
@@ -148,11 +149,58 @@ function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
     {
       id: `${prefix}-trace-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
       knowledgePoint: "字母描写", type: "fill_blank", difficulty: 1,
-      title: `用手描写 ${seed.upper} ${seed.lower}`,
+      title: `第3关 · 描写 ${seed.upper} ${seed.lower}`,
       prompt: `先描大写 ${seed.upper}，再描小写 ${seed.lower}。`,
       visual, options: [], answer: "done",
       explanation: `你完成了 ${seed.upper} 和 ${seed.lower} 的描写，记住大写和小写的不同形状。`,
       activityKind: "trace", traceLetter: `${seed.upper} ${seed.lower}`, estimatedMinutes: 5, vocabulary,
+    },
+    {
+      id: `${prefix}-bonus-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "字母奖励关", type: "single_choice", difficulty: 1,
+      title: `奖励关 · 找到 ${seed.word}`,
+      prompt: `${seed.meaning}是哪一个？`,
+      visual: `LETTER_SOUND:${seed.upper}:${seed.lower}`, options: wordOptions, answer: wordOptions[0],
+      explanation: `${seed.icon} 是 ${seed.word}，它以字母 ${seed.upper} 开头。`,
+      optionExplanations: Object.fromEntries(wordOptions.map((option, index) => [option, index === 0 ? `${seed.word} 就是${seed.meaning}。` : `${distractors[index - 1].word} 是${distractors[index - 1].meaning}。`])),
+      activityKind: "cn_to_en", estimatedMinutes: 3, vocabulary,
+    },
+    {
+      id: `${prefix}-listen-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "听词识义", type: "single_choice", difficulty: 1,
+      title: `听力关 · 听懂 ${seed.word}`,
+      prompt: `听一听 ${seed.word}，它是什么意思？`,
+      visual: `LETTER_SOUND:${seed.upper}:${seed.lower}`,
+      options: [seed.meaning, distractors[0].meaning, distractors[1].meaning], answer: seed.meaning,
+      explanation: `${seed.word} 是${seed.meaning}，它以字母 ${seed.upper} 开头。`,
+      optionExplanations: {
+        [seed.meaning]: `${seed.word} 的意思是${seed.meaning}。`,
+        [distractors[0].meaning]: `${distractors[0].meaning}是 ${distractors[0].word}。`,
+        [distractors[1].meaning]: `${distractors[1].meaning}是 ${distractors[1].word}。`,
+      },
+      activityKind: "en_to_cn", estimatedMinutes: 3, vocabulary,
+    },
+    {
+      id: `${prefix}-match-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "大小写配对", type: "single_choice", difficulty: 1,
+      title: `配对关 · 找到 ${seed.lower}`,
+      prompt: `谁是大写 ${seed.upper} 的小写伙伴？`,
+      visual: `LETTER_SOUND:${seed.upper}:${seed.lower}`,
+      options: [seed.lower, distractors[0].lower, distractors[1].lower], answer: seed.lower,
+      explanation: `${seed.upper} 和 ${seed.lower} 是同一个字母的大小写。`,
+      optionExplanations: Object.fromEntries([seed, ...distractors].map((item) => [item.lower, item.lower === seed.lower ? `${seed.lower} 是 ${seed.upper} 的小写伙伴。` : `${item.lower} 是字母 ${item.upper} 的小写。`])),
+      activityKind: "practice", estimatedMinutes: 3, vocabulary,
+    },
+    {
+      id: `${prefix}-spot-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
+      knowledgePoint: "单词首字母", type: "single_choice", difficulty: 1,
+      title: `观察关 · 单词火车头`,
+      prompt: `${seed.word} 的第一个字母是什么？`,
+      visual: `${seed.icon}  _${seed.word.slice(1)}`,
+      options: [seed.upper, distractors[0].upper, distractors[1].upper], answer: seed.upper,
+      explanation: `${seed.word} 的火车头是字母 ${seed.upper}。`,
+      optionExplanations: Object.fromEntries([seed, ...distractors].map((item) => [item.upper, item.upper === seed.upper ? `${seed.upper} + ${seed.word.slice(1)} = ${seed.word}。` : `放入 ${item.upper} 不能拼成 ${seed.word}。`])),
+      activityKind: "practice", estimatedMinutes: 3, vocabulary,
     },
   ];
 }
@@ -242,9 +290,12 @@ function withMeta(question: QuestionItem, index: number, minutes = 3): QuestionI
 
 export function getDailyCurriculum(grade: string, day = 1): QuestionItem[] {
   const englishName = englishSubject(grade);
-  const coreEnglish = getCourseQuestions(englishName, grade).slice(0, 3).map((question, index) => withMeta(question, index, 3));
+  const coreEnglish = getCourseQuestions(englishName, grade)
+    .filter((question) => !(["G1", "G2"].includes(grade) && question.knowledgePoint.includes("字母")))
+    .slice(0, 3)
+    .map((question, index) => withMeta(question, index, 3));
   const addedEnglish = (englishDaily[grade] ?? englishDaily.G3)
-    .filter((draft) => !(["G1", "G2"].includes(grade) && (draft.activityKind === "trace" || draft.activityKind === "phonics")))
+    .filter((draft) => ["G1", "G2"].includes(grade) ? draft.activityKind === "storybook" : true)
     .map((draft, index) => makeEnglish(grade, index, draft));
   const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, index) => {
     // 基础题：健康习惯优先用 primaryHealthDaily 的每日健康题，其余科目用基础题库
