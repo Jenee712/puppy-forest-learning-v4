@@ -1,7 +1,7 @@
 "use client";
 
-import { DragEvent, useEffect, useMemo, useState } from "react";
-import { TtsButton } from "./TtsButton";
+import { DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import { playTts, stopTts } from "@/lib/tts/playTts";
 
 type WordCard = { id: string; word: string; meaning: string; icon: string };
 
@@ -72,12 +72,16 @@ export default function WordTrainGame({ grade, coins, onReward }: { grade: strin
   const [status, setStatus] = useState<"playing" | "correct" | "wrong" | "finished">("playing");
   const [mastered, setMastered] = useState<string[]>([]);
   const [trainWords, setTrainWords] = useState<WordCard[]>([]);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const speechRun = useRef(0);
   const target = words[round] ?? words[0];
   const rewardKey = `puppy-word-train-mastered-${grade}`;
 
   useEffect(() => {
     try { setMastered(JSON.parse(window.localStorage.getItem(rewardKey) ?? "[]") as string[]); } catch { setMastered([]); }
   }, [rewardKey]);
+
+  useEffect(() => () => { speechRun.current += 1; stopTts(); }, []);
 
   useEffect(() => {
     if (!target) return;
@@ -102,6 +106,16 @@ export default function WordTrainGame({ grade, coins, onReward }: { grade: strin
 
   const nextRound = () => setRound((current) => Math.min(words.length - 1, current + 1));
   const restart = () => { setRound(0); setTrainWords([]); setStatus("playing"); };
+  const speakBilingual = async (card: WordCard) => {
+    const run = speechRun.current + 1; speechRun.current = run; setSpeakingId(card.id);
+    try {
+      await playTts(card.word, { language: "en", segment: "word", playbackRate: getRate(grade) });
+      if (speechRun.current !== run) return;
+      const cleanMeaning = card.meaning.replace(/[，。！？；：、“”‘’…·—]/g, " ").replace(/\s+/g, " ").trim();
+      await playTts(cleanMeaning, { language: "zh", segment: "word", playbackRate: 1 });
+    } catch { /* 保留游戏操作，不让临时语音错误打断孩子 */ }
+    finally { if (speechRun.current === run) setSpeakingId(null); }
+  };
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const card = choices.find((item) => item.id === event.dataTransfer.getData("text/plain"));
@@ -122,7 +136,7 @@ export default function WordTrainGame({ grade, coins, onReward }: { grade: strin
         <div className="train-hills" aria-hidden="true">🌲 🌳 🌲 🌳 🌲</div>
         <div className="word-locomotive" aria-hidden="true"><span>🚂</span><small>Leo</small></div>
         <div className="word-carriages">
-          {trainWords.map((word) => <div key={word.id}><span>{word.icon}</span><strong>{word.word}</strong></div>)}
+          {trainWords.map((word) => <button className={speakingId === word.id ? "speaking" : ""} key={word.id} onClick={() => void speakBilingual(word)} aria-label={`朗读 ${word.word}，${word.meaning}`} type="button"><span>{word.icon}</span><strong>{word.word}</strong><small>{speakingId === word.id ? "正在读" : "🔊"}</small></button>)}
         </div>
         <div className="train-track" />
       </div>
@@ -132,9 +146,9 @@ export default function WordTrainGame({ grade, coins, onReward }: { grade: strin
           <div className="word-clue"><span>{target.icon}</span><div><small>找到这个单词</small><strong>{target.meaning}</strong></div></div>
           <div className={`train-drop-zone ${status}`} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}><span>🚃</span><strong>{status === "wrong" ? "这节车厢不对，再试一次" : status === "correct" ? "连接成功！" : "把正确车厢拖到这里"}</strong></div>
           <div className="word-choice-track">
-            {choices.map((card) => <button draggable onDragStart={(event) => event.dataTransfer.setData("text/plain", card.id)} onClick={() => answer(card)} key={card.id} type="button"><span>🚃</span><strong>{card.word}</strong><small>拖动或点击</small></button>)}
+            {choices.map((card) => <button className={speakingId === card.id ? "speaking" : ""} draggable onDragStart={(event) => event.dataTransfer.setData("text/plain", card.id)} onClick={() => { void speakBilingual(card); answer(card); }} key={card.id} aria-label={`${card.word}，点击听中英文发音并选择答案`} type="button"><span>🚃</span><strong>{card.word}</strong><small>{speakingId === card.id ? "🔊 正在读英文和中文" : "🔊 点击听中英文并答题"}</small></button>)}
           </div>
-          {status === "correct" && <div className="train-result"><div><strong>{target.word}</strong><span>{target.meaning}</span></div><TtsButton text={target.word} segment="word" label="听单词" language="en" playbackRate={getRate(grade)} /><button onClick={nextRound} type="button">下一站 →</button></div>}
+          {status === "correct" && <div className="train-result"><button className={`train-result-word ${speakingId === target.id ? "speaking" : ""}`} onClick={() => void speakBilingual(target)} type="button"><strong>{target.word}</strong><span>{target.meaning}</span><small>{speakingId === target.id ? "🔊 正在读英文和中文" : "🔊 点单词听中英文"}</small></button><button className="train-next" onClick={nextRound} type="button">下一站 →</button></div>}
         </div>
       ) : (
         <div className="train-finish"><span>🏁</span><div><small>小火车到站啦</small><h2>本局收集了 {trainWords.length} 个单词</h2><p>已经掌握的单词不会重复发金币，但可以随时回来复习。</p></div><button onClick={restart} type="button">再开一趟</button></div>
