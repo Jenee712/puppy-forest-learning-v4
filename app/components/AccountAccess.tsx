@@ -10,9 +10,21 @@ export type AccountSession = {
 const GUEST_SESSION: AccountSession = { account: null, access: { authenticated: false, role: "guest", tier: "A", allowedGrades: [], maxDay: 1, unlimitedCoins: false } };
 
 async function accountRequest<T = AccountSession>(path: string, body?: Record<string, string>): Promise<T> {
-  const response = await fetch(path, { method: body ? "POST" : "GET", credentials: "same-origin", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
-  const data = await response.json() as T & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? "操作没有完成，请稍后再试");
+  let response: Response;
+  try {
+    response = await fetch(path, { method: body ? "POST" : "GET", credentials: "same-origin", headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+  } catch {
+    throw new Error("账号服务暂时无法连接，请稍后重试");
+  }
+  const raw = await response.text();
+  let data: T & { error?: string };
+  try {
+    data = raw ? JSON.parse(raw) as T & { error?: string } : {} as T & { error?: string };
+  } catch {
+    throw new Error("账号服务返回异常，请刷新页面后重试");
+  }
+  if (!response.ok) throw new Error(data.error ?? (response.status >= 500 ? "账号服务暂时不可用，请稍后重试" : "操作没有完成，请稍后再试"));
+  if (!raw) throw new Error("账号服务没有返回数据，请稍后重试");
   return data;
 }
 
