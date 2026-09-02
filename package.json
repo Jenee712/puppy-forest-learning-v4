@@ -9,6 +9,9 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "start:access": "node --env-file-if-exists=.env.access --no-warnings=ExperimentalWarning server/access-service.mjs",
+    "check:access": "node --test tests/access-policy.test.mjs tests/access-service.test.mjs",
+    "check:curriculum": "tsx --test tests/curriculum-quality.test.ts",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"

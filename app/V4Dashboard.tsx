@@ -13,10 +13,13 @@ import ForestHome from "./components/ForestHome";
 import WordTrainGame from "./components/WordTrainGame";
 import BackgroundMusic from "./components/BackgroundMusic";
 import DrawingStudio from "./components/DrawingStudio";
+import Ple1aCourse from "./components/Ple1aCourse";
+import { AccountAccessPanel, updateAccountGrade, useAccountAccess, type AccountSession } from "./components/AccountAccess";
 
 type Grade = { id: string; age: string; school: string; icon: string; color: string; focus: string; introduction: string; learning: string; goal: string };
 type Course = { icon: string; name: string; description: string; units: number; progress: number; color: string };
 type WrongRecord = { question: QuestionItem; selectedAnswer: string; attempts: number; mastered: boolean; lastWrongAt: string; reviewStage?: number; nextReviewAt?: string | null };
+type ChildFriendlyExplanation = { opening: string; steps: string[]; keyPoint: string; example: string; encouragement: string; source: "ai" | "local" };
 
 const grades: Grade[] = [
   { id: "G1", age: "3–4岁", school: "幼儿启蒙", icon: "🌱", color: "mint", focus: "表达、感知与好习惯", introduction: "用游戏、儿歌和图画开启第一次系统学习。", learning: "语言表达、数量感知、生活常识、A–Z字母启蒙", goal: "敢开口、会观察，养成短时专注和自主完成的习惯" },
@@ -39,7 +42,7 @@ function getTaskLook(question: QuestionItem) {
     trace: ["✍️", "pink"], phonics: ["👂", "yellow"], cn_to_en: ["中→EN", "blue"], en_to_cn: ["EN→中", "mint"], storybook: ["📖", "lilac"], grammar: ["🧩", "peach"], reading: ["🔎", "green"], practice: [question.subject.includes("数学") || question.subject.includes("数量") ? "🧮" : "📚", "green"],
   } as const;
   const [icon, color] = looks[question.activityKind ?? "practice"];
-  return { icon, color, minutes: `${question.estimatedMinutes ?? 3}分钟` };
+  return { icon, color, minutes: `约${question.estimatedMinutes ?? 3}分钟` };
 }
 
 const SESSION_NOW = Date.now();
@@ -54,9 +57,9 @@ function formatAnswer(value: string) {
 
 
 const products = [
-  { name: "首级永久版", price: "29.9", note: "任选1个等级 · 1个孩子", accent: false },
-  { name: "个人全级版", price: "139", note: "G1–G8全部等级 · 1个孩子", accent: true },
-  { name: "家庭全级版", price: "159", note: "G1–G8全部等级 · 2个孩子", accent: false },
+  { name: "A类免费体验", price: "0", note: "所选等级第1天 · 注册后保留体验记录", accent: false },
+  { name: "B类本级永久版", price: "19.9", note: "所选等级完整90天 · 永久使用", accent: true },
+  { name: "C类全站永久版", price: "59.9", note: "G1–G8全部等级与全部功能", accent: false },
 ];
 
 function getGreeting(hour: number): string {
@@ -144,13 +147,15 @@ function getCourses(grade: string): Course[] {
 }
 
 export function V4Dashboard() {
+  const { session: accountSession, loading: accountLoading, setSession: setAccountSession } = useAccountAccess();
   const [activeNav, setActiveNav] = useState("首页");
   const [selectedGrade, setSelectedGrade] = useState("G3");
   const [selectedDay, setSelectedDay] = useState(1);
   const [unlockedDay, setUnlockedDay] = useState(1);
   const [dailyGift, setDailyGift] = useState(0);
-  const [showGradeOnboarding, setShowGradeOnboarding] = useState(true);
+  const [showGradeOnboarding, setShowGradeOnboarding] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
+  const [showPle1aCourse, setShowPle1aCourse] = useState(false);
   const [activeQuestion, setActiveQuestion] = useState<QuestionItem | null>(null);
   const [activeTaskIndex, setActiveTaskIndex] = useState<number | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -168,6 +173,17 @@ export function V4Dashboard() {
   });
   const [greeting, setGreeting] = useState("你好");
   const [streak, setStreak] = useState(1);
+  const isAdmin = accountSession.access.role === "admin";
+  const unlimitedCoins = accountSession.access.unlimitedCoins;
+  const walletCoins = unlimitedCoins ? 999999 : coinBalance;
+
+  useEffect(() => {
+    if (!accountSession.access.authenticated) return;
+    const accountGrade = accountSession.account?.currentGrade;
+    if (accountGrade && accountSession.access.allowedGrades.includes(accountGrade)) setSelectedGrade(accountGrade);
+    if (accountSession.access.maxDay >= STUDY_PROGRAM_DAYS) setUnlockedDay(STUDY_PROGRAM_DAYS);
+    else if (accountSession.access.maxDay === 1) { setUnlockedDay(1); setSelectedDay(1); }
+  }, [accountSession]);
 
   // 页面切换时同步金币余额（贴纸商店可能消费了金币）
   useEffect(() => {
@@ -178,12 +194,24 @@ export function V4Dashboard() {
   useEffect(() => {
     setGreeting(getGreeting(new Date().getHours()));
     setStreak(loadStreak());
+  }, []);
+
+  // 登录后再恢复该家庭账号自己的年级与闯关状态。
+  useEffect(() => {
+    if (!accountSession.access.authenticated || !accountSession.account) return;
     try {
-      const savedGrade = window.localStorage.getItem("puppy-forest-grade");
-      const gradeToUse = grades.some((grade) => grade.id === savedGrade) ? savedGrade as string : "G3";
+      const accountKey = accountSession.account.id;
+      const savedGrade = window.localStorage.getItem(`puppy-forest-grade-${accountKey}`) ?? accountSession.account.currentGrade;
+      const gradeToUse = grades.some((grade) => grade.id === savedGrade) ? savedGrade as string : accountSession.account.currentGrade;
       setSelectedGrade(gradeToUse);
-      // V2 重新确认一次起点，避免旧测试版残留的默认 G3 直接跳过年级选择。
-      const onboardingDone = window.localStorage.getItem("puppy-forest-onboarding-v2") === "done";
+      if (accountSession.access.role === "admin") {
+        setShowGradeOnboarding(false);
+        setUnlockedDay(STUDY_PROGRAM_DAYS);
+        const storedDay = Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Number(window.localStorage.getItem("puppy-forest-study-day") ?? 1)));
+        setSelectedDay(storedDay);
+        return;
+      }
+      const onboardingDone = window.localStorage.getItem(`puppy-forest-onboarding-v3-${accountKey}`) === "done";
       setShowGradeOnboarding(!onboardingDone);
       if (onboardingDone) {
         const todayUnlocked = loadDailyAdventure();
@@ -200,7 +228,7 @@ export function V4Dashboard() {
         setUnlockedDay(1);
       }
     } catch { /* 当前设备无法读取时使用默认等级 */ }
-  }, []);
+  }, [accountSession.access.authenticated, accountSession.access.role, accountSession.account?.id]);
 
   const currentGrade = useMemo(() => grades.find((grade) => grade.id === selectedGrade) ?? grades[2], [selectedGrade]);
   const courses = useMemo(() => getCourses(selectedGrade), [selectedGrade]);
@@ -272,6 +300,7 @@ export function V4Dashboard() {
     const correct = normalizeAnswer(selectedAnswer) === normalizeAnswer(activeQuestion.answer);
     setAnswerState(correct ? "correct" : "wrong");
     setWrongRecords((records) => {
+      if (accountSession.access.role === "admin") return records;
       const existing = records.find((record) => record.question.id === activeQuestion.id);
       if (correct) return existing ? records.map((record) => {
         if (record.question.id !== activeQuestion.id) return record;
@@ -315,18 +344,25 @@ export function V4Dashboard() {
 
   const continueWithSmartPractice = () => {
     if (!activeQuestion) return;
-    if (activeTaskIndex !== null) updateCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
+    if (accountSession.access.role !== "admin" && activeTaskIndex !== null) updateCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
     void generateSmartQuestion(activeQuestion, "AI已生成一道同知识点进阶题");
   };
 
   const finishTask = () => {
-    if (activeTaskIndex !== null) {
+    if (accountSession.access.role !== "admin" && activeTaskIndex !== null) {
       updateCompletedTasks((current) => current.includes(activeTaskIndex) ? current : [...current, activeTaskIndex]);
     }
-    // 完成一题 +2 金币
-    const newCoins = coinBalance + 2;
-    setCoinBalance(newCoins);
-    try { window.localStorage.setItem("puppy-forest-coins", String(newCoins)); } catch { /* ignore */ }
+    if (!unlimitedCoins) {
+      const newCoins = coinBalance + 2;
+      setCoinBalance(newCoins);
+      try { window.localStorage.setItem("puppy-forest-coins", String(newCoins)); } catch { /* ignore */ }
+    }
+    if (accountSession.access.role === "admin") {
+      setActiveQuestion(null);
+      setActiveTaskIndex(null);
+      setPracticeNotice(null);
+      return;
+    }
 
     // 查找下一道未完成的题目，自动跳转
     const nextIndex = dailyQuestions.findIndex((_, idx) => {
@@ -347,12 +383,14 @@ export function V4Dashboard() {
 
   // 贴纸商店消费金币（与顶栏 coinBalance 共用同一状态与 localStorage）
   const spendCoins = (price: number) => {
+    if (unlimitedCoins) return;
     const newCoins = Math.max(0, coinBalance - price);
     setCoinBalance(newCoins);
     try { window.localStorage.setItem("puppy-forest-coins", String(newCoins)); } catch { /* ignore */ }
   };
 
   const rewardCoins = (amount: number) => {
+    if (unlimitedCoins) return;
     const newCoins = coinBalance + Math.max(0, amount);
     setCoinBalance(newCoins);
     try { window.localStorage.setItem("puppy-forest-coins", String(newCoins)); } catch { /* ignore */ }
@@ -360,28 +398,44 @@ export function V4Dashboard() {
 
   const goTo = (label: string) => {
     setActiveNav(label);
-    if (label !== "课程中心") setSelectedCourse(null);
+    if (label !== "课程中心") {
+      setSelectedCourse(null);
+      setShowPle1aCourse(false);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const changeGrade = (grade: string) => {
+  const changeGrade = (grade: string, preserveDay = false) => {
+    if (accountSession.access.authenticated && accountSession.access.role !== "admin" && !accountSession.access.allowedGrades.includes(grade)) {
+      setShowPlans(true);
+      return;
+    }
     setSelectedGrade(grade);
     setSelectedCourse(null);
-    setSelectedDay(unlockedDay);
+    setShowPle1aCourse(false);
+    if (!preserveDay) setSelectedDay(unlockedDay);
     try { window.localStorage.setItem("puppy-forest-grade", grade); } catch { /* ignore */ }
   };
 
-  const finishGradeOnboarding = () => {
+  const finishGradeOnboarding = async () => {
     const today = localDateKey();
+    try {
+      const updatedSession = await updateAccountGrade(selectedGrade);
+      setAccountSession(updatedSession);
+    } catch {
+      return;
+    }
     setSelectedDay(1);
     setUnlockedDay(1);
     setActiveNav("首页");
     setShowGradeOnboarding(false);
     try {
+      const accountKey = accountSession.account?.id;
       window.localStorage.setItem("puppy-forest-grade", selectedGrade);
+      if (accountKey) window.localStorage.setItem(`puppy-forest-grade-${accountKey}`, selectedGrade);
       window.localStorage.setItem("puppy-forest-study-day", "1");
       window.localStorage.setItem("puppy-forest-adventure", JSON.stringify({ unlockedDay: 1, lastVisit: today }));
-      window.localStorage.setItem("puppy-forest-onboarding-v2", "done");
+      if (accountKey) window.localStorage.setItem(`puppy-forest-onboarding-v3-${accountKey}`, "done");
       const rewardedCoins = claimDailyGift();
       if (rewardedCoins !== null) {
         setCoinBalance(rewardedCoins);
@@ -392,12 +446,16 @@ export function V4Dashboard() {
 
   const changeStudyDay = (day: number) => {
     const requestedDay = Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(day)));
-    const nextDay = Math.min(requestedDay, unlockedDay);
+    const nextDay = Math.min(requestedDay, unlockedDay, accountSession.access.maxDay);
     setSelectedDay(nextDay);
     setActiveQuestion(null);
     setActiveTaskIndex(null);
     try { window.localStorage.setItem("puppy-forest-study-day", String(nextDay)); } catch { /* ignore */ }
   };
+
+  if (accountLoading) return <main className="account-entry-gate"><div className="account-entry-brand"><span>🐶</span><strong>小狗的森林学堂</strong><small>正在准备家庭学习空间…</small></div></main>;
+
+  if (!accountSession.access.authenticated) return <main className="account-entry-gate"><section className="account-entry-shell"><div className="account-entry-brand"><span>🐶</span><strong>小狗的森林学堂</strong><small>登录后再选择孩子的学习起点</small></div><AccountAccessPanel entry session={accountSession} selectedGrade={selectedGrade} onSessionChange={setAccountSession} /><p className="account-entry-security">🔒 家长账号用于保存等级、学习进度和购买权限</p></section></main>;
 
   return (
     <div className="app-shell">
@@ -423,7 +481,7 @@ export function V4Dashboard() {
         <header className="topbar">
           <div className="mobile-brand"><span>🐶</span>森林学堂</div>
           <div className="progress-wrap"><span>今日 {completedMinutes} / {dailyMinutes} 分钟</span><div className="progress" role="progressbar" aria-label="今日学习进度" aria-valuemin={0} aria-valuemax={dailyMinutes} aria-valuenow={completedMinutes}><i style={{ width: `${Math.round(completedMinutes / dailyMinutes * 100)}%` }} /></div></div>
-          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><div className="coin" aria-label={`森林金币 ${coinBalance} 枚`}>🪙 {coinBalance}</div><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
+          <div className="top-actions"><button className="ai-quick-button" onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按当前等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId !== null ? "出题中…" : "✨ AI出题"}</button><div className="coin" aria-label={unlimitedCoins ? "管理员无限森林金币" : `森林金币 ${coinBalance} 枚`}>🪙 {unlimitedCoins ? "∞" : coinBalance}</div><button className="parent-button" onClick={() => goTo("家长中心")} type="button">家长中心</button></div>
         </header>
 
         <div className="content">
@@ -437,7 +495,7 @@ export function V4Dashboard() {
               <GradeRoute currentGrade={currentGrade} selectedGrade={selectedGrade} stationCount={dailyQuestions.length} minutes={dailyMinutes} onSelect={changeGrade} />
               <section className="lower-grid grade-content-enter" key={selectedGrade}>
                 <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} previewCount={3} onViewAll={() => goTo("今日学习")} />
-                <div className="smart-panel"><div className="smart-panel-header"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2></div><div className="smart-flow">📚<small>核心题库</small><i>→</i>🧠<small>智能出题</small><i>→</i>🌷<small>自动复习</small></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId === dailyQuestions[0]?.id ? "出题中…" : "✨ AI出题"}</button><button className="outline" onClick={() => setShowPlans(true)} type="button">永久解锁 ›</button></div></div>
+                <div className="smart-panel"><div className="smart-panel-header"><span className="ai-badge">✨ 智能学习伙伴</span><h2>家长不用找题</h2></div><div className="smart-flow">📚<small>核心题库</small><i>→</i>🧠<small>智能出题</small><i>→</i>🌷<small>自动复习</small></div><div className="smart-panel-actions"><button onClick={() => void generateSmartQuestion(dailyQuestions[0], "AI已按今天的学习等级生成一道新题")} disabled={aiLoadingId !== null || dailyQuestions.length === 0} type="button">{aiLoadingId === dailyQuestions[0]?.id ? "出题中…" : "✨ AI出题"}</button><button className="outline" onClick={() => isAdmin ? goTo("家长中心") : setShowPlans(true)} type="button">{isAdmin ? "🛡️ 管理员中心 ›" : "永久解锁 ›"}</button></div></div>
               </section>
             </>
           )}
@@ -446,7 +504,7 @@ export function V4Dashboard() {
             <section className="page-surface today-page">
               <PageTitle eyebrow={`90天成长计划 · 第${selectedDay}天`} title="今日学习路线" subtitle={`${currentGrade.id} · ${currentGrade.school} · ${dailyQuestions.length}站 · 预计${dailyMinutes}分钟`} icon="☀️" />
               <div className="learning-density"><span>🇬🇧 英语 {englishTaskCount} 站</span><strong>{Math.round(englishTaskCount / dailyQuestions.length * 100)}%</strong><p>英语为主线，包含听读、双向翻译、词句训练与分级阅读。</p></div>
-              <div className="today-summary"><div><strong>{completedTasks.length}<small>/ {dailyQuestions.length}</small></strong><span>今日完成</span></div><div><strong>{coinBalance}</strong><span>森林金币</span></div><div><strong>{dailyMinutes}</strong><span>预计分钟</span></div></div>
+              <div className="today-summary"><div><strong>{completedTasks.length}<small>/ {dailyQuestions.length}</small></strong><span>今日完成</span></div><div><strong>{unlimitedCoins ? "∞" : coinBalance}</strong><span>森林金币</span></div><div><strong>{dailyMinutes}</strong><span>预计分钟</span></div></div>
               <TaskPanel completedTasks={completedTasks} questions={dailyQuestions} courses={courses} onOpen={openTask} onGoCourse={goToCourse} standalone />
               <div className="gentle-note"><span>🌿</span><div><strong>学完记得看远处、活动一下</strong><p>每完成一个任务，系统会根据表现调整下一次练习。</p></div></div>
             </section>
@@ -454,13 +512,16 @@ export function V4Dashboard() {
 
           {activeNav === "课程中心" && (
             <section className="page-surface course-page">
-              {selectedCourse ? (
+              {showPle1aCourse ? (
+                <Ple1aCourse onBack={() => setShowPle1aCourse(false)} onReward={rewardCoins} />
+              ) : selectedCourse ? (
                 <CourseDetail course={selectedCourse} grade={currentGrade} aiLoading={aiLoadingId !== null} onBack={() => setSelectedCourse(null)} onStart={(lessonIndex) => openCourse(selectedCourse, lessonIndex)} onSmartStart={() => { const question = getCourseQuestions(selectedCourse.name, selectedGrade)[0]; if (question) void generateSmartQuestion(question, `AI已生成一道${selectedCourse.name}新题`); }} />
               ) : (
                 <>
                   <PageTitle eyebrow="按年龄和能力逐级成长" title="课程中心" subtitle="课程不是固定60天，可以按孩子的节奏持续学习" icon="🧩" />
                   <div className="course-grade-switcher">{grades.map((grade) => <button className={selectedGrade === grade.id ? "active" : ""} key={grade.id} onClick={() => changeGrade(grade.id)} type="button"><span>{grade.icon}</span><strong>{grade.id}</strong><small>{grade.school}</small></button>)}</div>
-                  <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div><button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button></div>
+                  <div className="course-intro"><div><span>{currentGrade.icon}</span><div><strong>{currentGrade.id} · {currentGrade.school}</strong><p>{currentGrade.age} · {currentGrade.focus}</p></div></div>{isAdmin ? <span className="admin-unlocked-badge">🛡️ 管理员 · G1–G8 已解锁</span> : <button onClick={() => setShowPlans(true)} type="button">查看解锁权益</button>}</div>
+                  {selectedGrade === "G3" && <article className="ple-entry-card"><div className="ple-entry-art" aria-hidden="true"><span>📘</span><i>ABC</i><b>🐶</b></div><div><small>学校同步教材 · 香港小学一年级</small><h2>Primary Longman Express 1A</h2><p>6个单元、28个独立课时。整理课本词汇、双语重点句、语法拼读、回家练习与AI知识拓展。</p><div><span>🔊 中英发音</span><span>📚 按课本页码</span><span>✨ AI拓展</span></div></div><aside><strong>PLE 1A</strong><small>同步复习专区</small><button onClick={() => { setShowPle1aCourse(true); window.scrollTo({ top: 0, behavior: "smooth" }); }} type="button">进入教材课程 →</button></aside></article>}
                   <div className="course-grid">{courses.map((course) => { const dailyCount = dailyCountByCourse[course.name] ?? 0; return <article className={`course-card ${course.color}`} key={course.name}><span className="course-icon">{course.icon}</span><div className="course-card-head"><div><h3>{course.name}</h3><p>{course.description}</p></div><em>{course.units}课</em></div><div className="course-progress"><i style={{ width: `${course.progress}%` }} /></div><footer><span className="course-foot">{dailyCount > 0 && <button className="course-daily" onClick={() => goTo("今日学习")} type="button">☀️ 今日学习 {dailyCount} 站</button>}<i>已完成 {course.progress}%</i></span><button onClick={() => { setSelectedCourse(course); window.scrollTo({ top: 0, behavior: "smooth" }); }} type="button">进入课程 →</button></footer></article>; })}</div>
                 </>
               )}
@@ -468,18 +529,18 @@ export function V4Dashboard() {
           )}
 
           {activeNav === "复习花园" && <ReviewGarden records={wrongRecords} loadingId={aiLoadingId} onRetry={retryWrongQuestion} onSmartPractice={openSmartPractice} onCourse={() => goTo("课程中心")} />}
-          {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} totalTasks={dailyQuestions.length} onGarden={() => goTo("复习花园")} />}
+          {activeNav === "家长中心" && <ParentCenter records={wrongRecords} grade={currentGrade} completedTasks={completedTasks.length} totalTasks={dailyQuestions.length} accountSession={accountSession} onAccountChange={setAccountSession} onGarden={() => goTo("复习花园")} />}
           {activeNav === "绘本馆" && <PictureBookLibrary grade={selectedGrade} />}
-          {activeNav === "贴纸册" && <StickerShop coins={coinBalance} onSpend={spendCoins} />}
-          {activeNav === "森林家园" && <ForestHome coins={coinBalance} onSpend={spendCoins} />}
-          {activeNav === "单词小火车" && <WordTrainGame grade={selectedGrade} coins={coinBalance} onReward={rewardCoins} />}
-          {activeNav === "森林小画室" && <DrawingStudio coins={coinBalance} onReward={rewardCoins} />}
+          {activeNav === "贴纸册" && <StickerShop coins={walletCoins} onSpend={spendCoins} />}
+          {activeNav === "森林家园" && <ForestHome coins={walletCoins} onSpend={spendCoins} />}
+          {activeNav === "单词小火车" && <WordTrainGame grade={selectedGrade} day={selectedDay} coins={walletCoins} onReward={rewardCoins} />}
+          {activeNav === "森林小画室" && <DrawingStudio coins={walletCoins} onReward={rewardCoins} />}
 
-          {activeNav === "学习计划" && <StudyPlan day={selectedDay} unlockedDay={unlockedDay} questions={dailyQuestions} completed={completedTasks} progress={dailyProgress} grade={selectedGrade} onDayChange={changeStudyDay} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
+          {activeNav === "学习计划" && <StudyPlan day={selectedDay} unlockedDay={unlockedDay} questions={dailyQuestions} completed={completedTasks} progress={dailyProgress} grade={selectedGrade} isAdmin={accountSession.access.role === "admin"} onGradeChange={(grade) => changeGrade(grade, true)} onDayChange={changeStudyDay} onOpenTask={openTask} onGoToday={() => goTo("今日学习")} />}
 
           {!["首页", "今日学习", "课程中心", "复习花园", "家长中心", "绘本馆", "贴纸册", "森林家园", "单词小火车", "森林小画室", "学习计划"].includes(activeNav) && <FeaturePage name={activeNav} onBack={() => goTo("首页")} />}
 
-          {showPlans && <PlanModal onClose={() => setShowPlans(false)} />}
+          {showPlans && !isAdmin && <PlanModal onClose={() => setShowPlans(false)} />}
           {dailyGift > 0 && <DailyGiftModal amount={dailyGift} day={unlockedDay} onClose={() => setDailyGift(0)} />}
           {activeQuestion && <LessonModal question={activeQuestion} notice={practiceNotice} selectedAnswer={selectedAnswer} answerState={answerState} aiLoading={aiLoadingId !== null} onSelect={(answer) => { setSelectedAnswer(answer); setAnswerState(null); }} onCheck={checkAnswer} onSmartNext={continueWithSmartPractice} onFinish={finishTask} onClose={() => { setActiveQuestion(null); setActiveTaskIndex(null); setPracticeNotice(null); }} />}
         </div>
@@ -503,12 +564,12 @@ function DailyGiftModal({ amount, day, onClose }: { amount: number; day: number;
   return <div className="modal-backdrop gift-backdrop" role="presentation" onMouseDown={onClose}><section className="daily-gift-modal" role="dialog" aria-modal="true" aria-labelledby="daily-gift-title" onMouseDown={(event) => event.stopPropagation()}><div className="gift-sparkles" aria-hidden="true">✦ ⭐ ✦</div><span className="gift-chest" aria-hidden="true">🎁</span><small>每日森林礼物</small><h2 id="daily-gift-title">欢迎来到第{day}关！</h2><strong>+{amount} <em>🪙</em></strong><p>今天的50枚学习金币已经放进你的口袋，可以购买贴纸、家具和花园装饰。</p><button onClick={onClose} type="button">开心收下 →</button></section></div>;
 }
 
-function GradeOnboarding({ selectedGrade, onSelect, onConfirm }: { selectedGrade: string; onSelect: (grade: string) => void; onConfirm: () => void }) {
+function GradeOnboarding({ selectedGrade, onSelect, onConfirm }: { selectedGrade: string; onSelect: (grade: string) => void; onConfirm: () => void | Promise<void> }) {
   const selected = grades.find((grade) => grade.id === selectedGrade) ?? grades[2];
-  return <div className="grade-onboarding-backdrop"><section className="grade-onboarding" role="dialog" aria-modal="true" aria-labelledby="grade-onboarding-title"><header><span>🐶 小狗的森林学堂</span><small>先选起点，再开始每天的森林闯关</small><h1 id="grade-onboarding-title">为孩子选择合适的起点</h1><p>八级成长路线</p></header><div className="onboarding-grade-grid" aria-label="选择孩子的学习等级">{grades.map((grade) => { const active = selectedGrade === grade.id; return <button className={`onboarding-grade-card ${grade.color} ${active ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} aria-pressed={active} type="button"><span>{grade.icon}</span><div><strong>{grade.id}</strong><b>{grade.school}</b></div><small>{grade.age}</small><p>{grade.introduction}</p><i>{grade.focus}</i>{active && <em>已选择 ✓</em>}</button>; })}</div><section className={`selected-grade-intro ${selected.color}`} aria-live="polite"><span>{selected.icon}</span><div><small>当前选择 · {selected.age}</small><h2>{selected.id} · {selected.school}</h2><p>{selected.introduction}</p></div><dl><div><dt>📚 主要学习</dt><dd>{selected.learning}</dd></div><div><dt>🎯 阶段目标</dt><dd>{selected.goal}</dd></div></dl></section><footer><div><span>🚂</span><div><small>准备出发</small><strong>从第1天开始闯关</strong><p>以后每天解锁一个新关卡</p></div></div><button onClick={onConfirm} type="button">确认起点，开启第1关 →</button></footer></section></div>;
+  return <div className="grade-onboarding-backdrop"><section className="grade-onboarding" role="dialog" aria-modal="true" aria-labelledby="grade-onboarding-title"><header><span>🐶 小狗的森林学堂</span><small>先选起点，再开始每天的森林闯关</small><h1 id="grade-onboarding-title">为孩子选择合适的起点</h1><p>八级成长路线</p></header><div className="onboarding-grade-grid" aria-label="选择孩子的学习等级">{grades.map((grade) => { const active = selectedGrade === grade.id; return <button className={`onboarding-grade-card ${grade.color} ${active ? "selected" : ""}`} key={grade.id} onClick={() => onSelect(grade.id)} aria-pressed={active} type="button"><span>{grade.icon}</span><div><strong>{grade.id}</strong><b>{grade.school}</b></div><small>{grade.age}</small><p>{grade.introduction}</p><i>{grade.focus}</i>{active && <em>已选择 ✓</em>}</button>; })}</div><section className={`selected-grade-intro ${selected.color}`} aria-live="polite"><span>{selected.icon}</span><div><small>当前选择 · {selected.age}</small><h2>{selected.id} · {selected.school}</h2><p>{selected.introduction}</p></div><dl><div><dt>📚 主要学习</dt><dd>{selected.learning}</dd></div><div><dt>🎯 阶段目标</dt><dd>{selected.goal}</dd></div></dl></section><footer><div><span>🚂</span><div><small>准备出发</small><strong>从第1天开始闯关</strong><p>以后每天解锁一个新关卡</p></div></div><button onClick={() => void onConfirm()} type="button">确认起点，开启第1关 →</button></footer></section></div>;
 }
 
-function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, onDayChange, onOpenTask, onGoToday }: { day: number; unlockedDay: number; questions: QuestionItem[]; completed: number[]; progress: Record<string, number[]>; grade: string; onDayChange: (day: number) => void; onOpenTask: (index: number) => void; onGoToday: () => void }) {
+function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, isAdmin, onGradeChange, onDayChange, onOpenTask, onGoToday }: { day: number; unlockedDay: number; questions: QuestionItem[]; completed: number[]; progress: Record<string, number[]>; grade: string; isAdmin: boolean; onGradeChange: (grade: string) => void; onDayChange: (day: number) => void; onOpenTask: (index: number) => void; onGoToday: () => void }) {
   const groups = useMemo(() => {
     const map = new Map<string, { q: QuestionItem; idx: number }[]>();
     questions.forEach((q, idx) => {
@@ -521,10 +582,14 @@ function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, on
   const totalMinutes = questions.reduce((sum, q) => sum + (q.estimatedMinutes ?? 3), 0);
   const phase = day <= 30 ? "基础扎根" : day <= 60 ? "能力生长" : "综合进阶";
   const startedDays = Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).filter((studyDay) => (progress[`${grade}-day-${studyDay}`]?.length ?? 0) > 0).length;
+  const knowledgeCount = new Set(questions.map((question) => `${question.subject}:${question.knowledgePoint}`)).size;
+  const englishCount = questions.filter((question) => question.subject.includes("英语")).length;
 
   return (
     <section className="page-surface study-plan-page">
       <PageTitle eyebrow="每天独立进度 · 学完自动保存" title="90天学习计划" subtitle={`当前第${day}天 · ${phase} · ${questions.length}站 · 预计${totalMinutes}分钟`} icon="🗺️" />
+      {isAdmin && <section className="admin-course-preview" aria-label="管理员课程预览工具"><header><span>🛡️</span><div><small>管理员专用 · 不记录学习进度</small><h2>G1–G8 · 第1–90天课程预览</h2><p>切换等级和天数，检查当天题量、知识点、英语占比与预计时长。</p></div></header><div className="admin-preview-controls"><label><span>预览等级</span><select value={grade} onChange={(event) => onGradeChange(event.target.value)}>{grades.map((item) => <option value={item.id} key={item.id}>{item.id} · {item.school}</option>)}</select></label><label><span>预览天数</span><select value={day} onChange={(event) => onDayChange(Number(event.target.value))}>{Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).map((studyDay) => <option value={studyDay} key={studyDay}>第{studyDay}天</option>)}</select></label><div className="admin-preview-jumps" aria-label="快速跳转关键节点">{[1, 15, 30, 31, 45, 60, 61, 75, 90].map((studyDay) => <button className={day === studyDay ? "active" : ""} onClick={() => onDayChange(studyDay)} key={studyDay} type="button">{studyDay}天</button>)}</div></div><div className="admin-preview-stats"><span><strong>{questions.length}</strong>站课程</span><span><strong>{knowledgeCount}</strong>个知识点</span><span><strong>{englishCount}</strong>站英语</span><span><strong>{questions.length ? Math.round(englishCount / questions.length * 100) : 0}%</strong>英语占比</span><span><strong>{totalMinutes}</strong>分钟</span></div></section>}
+      {isAdmin && <AdminQuestionInventory grade={grade} day={day} questions={questions} onOpenTask={onOpenTask} />}
       <div className="today-summary">
         <div><strong>{day}<small>/ {STUDY_PROGRAM_DAYS}</small></strong><span>当前学习日</span></div>
         <div><strong>{startedDays}</strong><span>已有学习记录</span></div>
@@ -537,7 +602,7 @@ function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, on
           {Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).map((studyDay) => {
             const done = progress[`${grade}-day-${studyDay}`]?.length ?? 0;
             const selected = studyDay === day;
-            const locked = studyDay > unlockedDay;
+            const locked = !isAdmin && studyDay > unlockedDay;
             return <button className={`${selected ? "selected " : ""}${done > 0 ? "started " : ""}${locked ? "locked" : ""}`} key={studyDay} onClick={() => onDayChange(studyDay)} aria-pressed={selected} disabled={locked} aria-label={locked ? `第${studyDay}天，尚未解锁` : `第${studyDay}天`} type="button"><strong>{studyDay}</strong>{locked ? <small>🔒</small> : done > 0 && <small>{done}站</small>}</button>;
           })}
         </div>
@@ -559,9 +624,37 @@ function StudyPlan({ day, unlockedDay, questions, completed, progress, grade, on
           );
         })}
       </div>
-      <div className="gentle-note"><span>🌿</span><div><strong>正在查看第{day}天</strong><p>每一天的完成记录分别保存。知识点会循环出现，但练习顺序会变化，帮助孩子间隔复习。</p></div><button className="plan-go-today" onClick={onGoToday} type="button">学习第{day}天 →</button></div>
+      <div className="gentle-note"><span>{isAdmin ? "🛡️" : "🌿"}</span><div><strong>{isAdmin ? `管理员正在预览 ${grade} 第${day}天` : `正在查看第${day}天`}</strong><p>{isAdmin ? "预览答题不会写入孩子进度、错题本或学习金币。" : "每一天的完成记录分别保存。知识点会循环出现，但练习顺序会变化，帮助孩子间隔复习。"}</p></div><button className="plan-go-today" onClick={onGoToday} type="button">{isAdmin ? "打开当天任务" : `学习第${day}天`} →</button></div>
     </section>
   );
+}
+
+function AdminQuestionInventory({ grade, day, questions, onOpenTask }: { grade: string; day: number; questions: QuestionItem[]; onOpenTask: (index: number) => void }) {
+  const [subject, setSubject] = useState("全部学科");
+  const [query, setQuery] = useState("");
+  const subjects = useMemo(() => ["全部学科", ...new Set(questions.map((question) => question.subject))], [questions]);
+  const visibleQuestions = useMemo(() => {
+    const keyword = query.trim().toLocaleLowerCase();
+    return questions.map((question, index) => ({ question, index })).filter(({ question }) => {
+      if (subject !== "全部学科" && question.subject !== subject) return false;
+      if (!keyword) return true;
+      return `${question.subject} ${question.knowledgePoint} ${question.title} ${question.prompt} ${question.answer}`.toLocaleLowerCase().includes(keyword);
+    });
+  }, [questions, query, subject]);
+
+  return <section className="admin-question-inventory" aria-labelledby="admin-inventory-title">
+    <header><div><small>内容审核清单</small><h2 id="admin-inventory-title">{grade} · 第{day}天完整题目</h2><p>逐题核对题干、选项、答案和解析；展开查看不会产生学习记录。</p></div><strong>{visibleQuestions.length}/{questions.length} 题</strong></header>
+    <div className="admin-inventory-toolbar">
+      <label><span>按学科查看</span><select value={subject} onChange={(event) => setSubject(event.target.value)}>{subjects.map((item) => <option key={item}>{item}</option>)}</select></label>
+      <label><span>搜索内容</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="输入知识点、题目或答案" /></label>
+    </div>
+    <div className="admin-question-list">
+      {visibleQuestions.length === 0 ? <p className="admin-inventory-empty">没有找到符合条件的题目。</p> : visibleQuestions.map(({ question, index }) => <details key={question.id}>
+        <summary><span>{index + 1}</span><div><small>{question.subject} · {question.knowledgePoint}</small><strong>{question.title}</strong></div><em>难度{question.difficulty} · 约{question.estimatedMinutes ?? 3}分钟</em></summary>
+        <div className="admin-question-body"><p><b>题目</b>{question.prompt}</p>{question.visual && <p><b>画面/提示</b>{question.visual}</p>}<div><b>选项</b>{question.options.length ? <ol>{question.options.map((option) => <li className={normalizeAnswer(option) === normalizeAnswer(question.answer) ? "correct" : ""} key={option}>{option}</li>)}</ol> : <span>操作题或开放任务</span>}</div><p className="admin-answer"><b>正确答案</b>{formatAnswer(question.answer)}</p><p><b>解析</b>{question.explanation}</p><button onClick={() => onOpenTask(index)} type="button">打开完整练习 →</button></div>
+      </details>)}
+    </div>
+  </section>;
 }
 
 function GradeRoute({ currentGrade, selectedGrade, stationCount, minutes, onSelect }: { currentGrade: Grade; selectedGrade: string; stationCount: number; minutes: number; onSelect: (grade: string) => void }) {
@@ -600,7 +693,7 @@ function PageTitle({ eyebrow, title, subtitle, icon }: { eyebrow: string; title:
 }
 
 function PlanModal({ onClose }: { onClose: () => void }) {
-  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section className="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-title" onMouseDown={(event) => event.stopPropagation()}><button className="close" aria-label="关闭" onClick={onClose} type="button">×</button><span className="section-kicker">没有限时试用，购买后永久使用</span><h2 id="plan-title">选择适合你家的成长方案</h2><div className="plan-grid">{products.map((product) => <article className={product.accent ? "plan-card featured" : "plan-card"} key={product.name}>{product.accent && <span className="recommended">最受欢迎</span>}<h3>{product.name}</h3><strong><small>¥</small>{product.price}</strong><p>{product.note}</p><button type="button">选择此方案</button></article>)}</div><p className="upgrade-note">以后每增加一个等级仅需 ¥19.9，已支付金额可抵扣全级版。</p></section></div>;
+  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}><section className="plan-modal" role="dialog" aria-modal="true" aria-labelledby="plan-title" onMouseDown={(event) => event.stopPropagation()}><button className="close" aria-label="关闭" onClick={onClose} type="button">×</button><span className="section-kicker">先免费体验，购买后永久使用</span><h2 id="plan-title">选择适合你家的成长方案</h2><div className="plan-grid">{products.map((product) => <article className={product.accent ? "plan-card featured" : "plan-card"} key={product.name}>{product.accent && <span className="recommended">最受欢迎</span>}<h3>{product.name}</h3><strong><small>¥</small>{product.price}</strong><p>{product.note}</p><button onClick={onClose} type="button">{product.price === "0" ? "免费注册体验" : "前往家长中心开通"}</button></article>)}</div><p className="upgrade-note">当前由管理员核对订单后开通；正式支付接口将在支付资质通过后接入。</p></section></div>;
 }
 
 function LessonModal({ question, notice, selectedAnswer, answerState, aiLoading, onSelect, onCheck, onSmartNext, onFinish, onClose }: { question: QuestionItem; notice: string | null; selectedAnswer: string | null; answerState: "correct" | "wrong" | null; aiLoading: boolean; onSelect: (answer: string) => void; onCheck: () => void; onSmartNext: () => void; onFinish: () => void; onClose: () => void }) {
@@ -625,13 +718,52 @@ function LearningVisual({ visual }: { visual: string }) {
 
 function OptionAnalysis({ question, selectedAnswer }: { question: QuestionItem; selectedAnswer: string | null }) {
   if (question.options.length < 2) return null;
+  const englishPlaybackRate = getEnglishPlaybackRate(question.grade);
   const fallback = (option: string) => option === question.answer
     ? question.explanation
     : question.subject.includes("英语")
       ? `“${cleanEnglishSpeech(option)}”没有表达本题要求的“${question.knowledgePoint}”，与题目情境不匹配。`
       : `这个选项与题干中的关键条件不一致，因此可以排除。`;
 
-  return <section className="option-analysis" aria-label="逐项选项解析"><header><span>🔎</span><div><small>不只记住答案</small><strong>逐项选项解析</strong></div></header><div>{question.options.map((option, index) => { const correct = option === question.answer; const chosen = option === selectedAnswer; return <article className={correct ? "correct" : "wrong"} key={option}><span>{correct ? "✓" : "×"}</span><div><strong>{String.fromCharCode(65 + index)}．{option}{chosen && <em>你的选择</em>}</strong><p>{question.optionExplanations?.[option] ?? fallback(option)}</p></div></article>; })}</div></section>;
+  return <><section className="option-analysis" aria-label="逐项选项解析"><header><span>🔎</span><div><small>不只记住答案</small><strong>逐项选项解析</strong></div></header><div>{question.options.map((option, index) => {
+    const correct = option === question.answer;
+    const chosen = option === selectedAnswer;
+    const explanation = question.optionExplanations?.[option] ?? fallback(option);
+    const optionText = cleanEnglishSpeech(option);
+    const optionLanguage = getTtsLanguage(optionText);
+    const explanationLanguage = getTtsLanguage(explanation);
+    return <article className={correct ? "correct" : "wrong"} key={option}><span>{correct ? "✓" : "×"}</span><div><strong>{String.fromCharCode(65 + index)}．{option}{chosen && <em>你的选择</em>}</strong><p>{explanation}</p><div className="option-analysis-audio"><TtsButton text={optionText} language={optionLanguage} playbackRate={optionLanguage === "en" ? englishPlaybackRate : 1} segment={optionText.includes(" ") ? "sentence" : "word"} label="听选项" /><TtsButton text={explanation} language={explanationLanguage} playbackRate={explanationLanguage === "en" ? englishPlaybackRate : 1} segment="sentence" label="听解释" /></div></div></article>;
+  })}</div></section><QuestionAiHelper question={question} selectedAnswer={selectedAnswer ?? ""} answerState={normalizeAnswer(selectedAnswer ?? "") === normalizeAnswer(question.answer) ? "correct" : "wrong"} /></>;
+}
+
+function QuestionAiHelper({ question, selectedAnswer, answerState }: { question: QuestionItem; selectedAnswer: string; answerState: "correct" | "wrong" }) {
+  const [explanation, setExplanation] = useState<ChildFriendlyExplanation | null>(null);
+  const [loadingMode, setLoadingMode] = useState<"explain" | "simplify" | "example" | null>(null);
+  const [error, setError] = useState(false);
+
+  const ask = async (mode: "explain" | "simplify" | "example") => {
+    setLoadingMode(mode);
+    setError(false);
+    try {
+      const response = await fetch("/api/explain-question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, selectedAnswer, answerState, mode }),
+      });
+      const data = await response.json() as { explanation?: ChildFriendlyExplanation };
+      if (!response.ok || !data.explanation) throw new Error("explain_failed");
+      setExplanation(data.explanation);
+    } catch {
+      setError(true);
+    } finally {
+      setLoadingMode(null);
+    }
+  };
+
+  if (!explanation) return <section className="question-ai-helper collapsed"><div className="helper-avatar" aria-hidden="true">🦌</div><div><small>还是有点不明白？</small><strong>请小鹿老师换一种方法讲</strong><p>会结合这道题和你的答案，一步一步带你找线索。</p></div><button onClick={() => void ask("explain")} disabled={loadingMode !== null} type="button">{loadingMode ? "正在想怎么讲…" : "问问小鹿老师"}</button>{error && <p className="helper-error">暂时没有连上，请稍后再试。</p>}</section>;
+
+  const speechText = [explanation.opening, ...explanation.steps, explanation.keyPoint, explanation.example, explanation.encouragement].join("。 ");
+  return <section className="question-ai-helper expanded"><header><div className="helper-avatar" aria-hidden="true">🦌</div><div><small>小鹿老师 · 这道题再讲一遍</small><strong>{explanation.opening}</strong></div><TtsButton text={speechText} language="zh" segment="sentence" label="听老师讲" /></header><ol>{explanation.steps.map((step, index) => <li key={`${index}-${step}`}><span>{index + 1}</span><p>{step}</p></li>)}</ol><div className="helper-key"><span>🌟</span><div><small>带走这个方法</small><strong>{explanation.keyPoint}</strong></div></div><div className="helper-example"><span>🧩</span><p>{explanation.example}</p></div><p className="helper-encouragement">{explanation.encouragement}</p><footer><button onClick={() => void ask("simplify")} disabled={loadingMode !== null} type="button">{loadingMode === "simplify" ? "正在换种说法…" : "再简单一点"}</button><button onClick={() => void ask("example")} disabled={loadingMode !== null} type="button">{loadingMode === "example" ? "正在想例子…" : "再举一个例子"}</button></footer>{error && <p className="helper-error">暂时没有连上，刚才的讲解仍可以继续听。</p>}</section>;
 }
 
 function TracePractice({ letters, done, onDone }: { letters: string; done: boolean; onDone: () => void }) {
@@ -756,7 +888,7 @@ function playFeedbackTone(state: "correct" | "wrong") {
   }
 }
 
-function ParentCenter({ records, grade, completedTasks, totalTasks, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; totalTasks: number; onGarden: () => void }) {
+function ParentCenter({ records, grade, completedTasks, totalTasks, accountSession, onAccountChange, onGarden }: { records: WrongRecord[]; grade: Grade; completedTasks: number; totalTasks: number; accountSession: AccountSession; onAccountChange: (session: AccountSession) => void; onGarden: () => void }) {
   const pending = records.filter((record) => !record.mastered).length;
   const mastered = records.filter((record) => record.mastered).length;
   const subjectStats = Object.entries(records.reduce<Record<string, number>>((stats, record) => {
@@ -775,6 +907,7 @@ function ParentCenter({ records, grade, completedTasks, totalTasks, onGarden }: 
     <div className="parent-hero"><div><span>🦌</span><div><small>孩子档案</small><strong>小鹿 Leo</strong><p>{grade.age} · 当前学习等级 {grade.id}</p></div></div><button onClick={onGarden} type="button">查看孩子今天的复习 →</button></div>
     <div className="parent-metrics"><div><strong>{completedTasks}<small>/{totalTasks}</small></strong><span>今日任务</span></div><div><strong>{records.length}</strong><span>累计错题</span></div><div><strong>{pending}</strong><span>需要关注</span></div><div><strong>{mastered}</strong><span>已完成订正</span></div></div>
     <div className="parent-insight"><span>💡</span><div><strong>本周学习建议</strong><p>{pending > 0 ? `孩子目前有${pending}个知识点需要复习${focusSubject ? `，优先关注${focusSubject}` : ""}。系统已经放入复习花园，家长无需另外出题。` : "目前没有待订正题目，保持每天20～30分钟的轻量学习即可。"}</p></div></div>
+    <AccountAccessPanel session={accountSession} selectedGrade={grade.id} onSessionChange={onAccountChange} />
     <section className="learning-report">
       <div className="section-heading compact"><div><span className="section-kicker">把错题翻译成家长能看懂的结论</span><h2>学习诊断</h2></div><span className="task-count">自动分析</span></div>
       {records.length === 0 ? <div className="report-empty"><span>🌱</span><div><strong>完成几道练习后，这里会出现学习诊断</strong><p>系统会按学科和知识点归纳薄弱项，不需要家长统计。</p></div></div> : <div className="report-grid">

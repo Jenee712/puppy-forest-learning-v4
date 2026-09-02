@@ -18,8 +18,10 @@ const brushSizes = [6, 14, 28];
 
 export default function DrawingStudio({ coins, onReward }: { coins: number; onReward: (amount: number) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const layoutRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
+  const pointerIdRef = useRef<number | null>(null);
   const lastPoint = useRef({ x: 0, y: 0 });
   const undoStack = useRef<ImageData[]>([]);
   const redoStack = useRef<ImageData[]>([]);
@@ -54,7 +56,10 @@ export default function DrawingStudio({ coins, onReward }: { coins: number; onRe
     return () => { document.removeEventListener("fullscreenchange", onFullscreenChange); document.removeEventListener("keydown", onKeyDown); };
   }, []);
 
-  const context = () => canvasRef.current?.getContext("2d", { willReadFrequently: true }) ?? null;
+  const context = () => {
+    if (!contextRef.current && canvasRef.current) contextRef.current = canvasRef.current.getContext("2d");
+    return contextRef.current;
+  };
   const snapshot = () => {
     const ctx = context(); if (!ctx) return;
     if (undoStack.current.length >= 12) undoStack.current.shift();
@@ -67,6 +72,7 @@ export default function DrawingStudio({ coins, onReward }: { coins: number; onRe
   };
   const chooseSample = (next: DrawingSample) => {
     clearDrawing(false); undoStack.current = []; redoStack.current = [];
+    contextRef.current = null;
     setSample(next); setTemplateOpacity(next.opacity); setNotice(""); setHistoryTick((value) => value + 1);
   };
   const returnToChoices = () => {
@@ -82,24 +88,40 @@ export default function DrawingStudio({ coins, onReward }: { coins: number; onRe
     setIsFullscreen(true);
     try { await layoutRef.current?.requestFullscreen?.(); } catch { /* CSS fullscreen remains available */ }
   };
-  const pointFromEvent = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return { x: (event.clientX - rect.left) * 1000 / rect.width, y: (event.clientY - rect.top) * 700 / rect.height };
+  const pointFromClient = (clientX: number, clientY: number, rect: DOMRect) => {
+    return { x: (clientX - rect.left) * 1000 / rect.width, y: (clientY - rect.top) * 700 / rect.height };
   };
   const startDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (drawingRef.current) return;
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId); snapshot(); redoStack.current = [];
-    drawingRef.current = true; setHasDrawing(true); lastPoint.current = pointFromEvent(event);
+    const rect = event.currentTarget.getBoundingClientRect();
+    drawingRef.current = true; pointerIdRef.current = event.pointerId; setHasDrawing(true);
+    lastPoint.current = pointFromClient(event.clientX, event.clientY, rect);
   };
   const draw = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
+    if (!drawingRef.current || pointerIdRef.current !== event.pointerId) return;
+    event.preventDefault();
     const ctx = context(); if (!ctx) return;
-    const next = pointFromEvent(event);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const nativeEvent = event.nativeEvent;
+    const points = typeof nativeEvent.getCoalescedEvents === "function" ? nativeEvent.getCoalescedEvents() : [nativeEvent];
     ctx.globalCompositeOperation = eraser ? "destination-out" : "source-over";
     ctx.strokeStyle = color; ctx.lineWidth = eraser ? brushSize * 2.2 : brushSize;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.beginPath(); ctx.moveTo(lastPoint.current.x, lastPoint.current.y); ctx.lineTo(next.x, next.y); ctx.stroke(); lastPoint.current = next;
+    ctx.beginPath(); ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
+    points.forEach((point) => {
+      const next = pointFromClient(point.clientX, point.clientY, rect);
+      ctx.lineTo(next.x, next.y); lastPoint.current = next;
+    });
+    ctx.stroke();
   };
-  const stopDrawing = () => { if (drawingRef.current) setHistoryTick((value) => value + 1); drawingRef.current = false; };
+  const stopDrawing = (event?: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current || (event && pointerIdRef.current !== event.pointerId)) return;
+    if (event?.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setHistoryTick((value) => value + 1); drawingRef.current = false; pointerIdRef.current = null;
+    const ctx = context(); if (ctx) ctx.globalCompositeOperation = "source-over";
+  };
   const undo = () => { const ctx = context(); if (!ctx || undoStack.current.length === 0) return; redoStack.current.push(ctx.getImageData(0, 0, 1000, 700)); ctx.putImageData(undoStack.current.pop()!, 0, 0); setHistoryTick((value) => value + 1); };
   const redo = () => { const ctx = context(); if (!ctx || redoStack.current.length === 0) return; undoStack.current.push(ctx.getImageData(0, 0, 1000, 700)); ctx.putImageData(redoStack.current.pop()!, 0, 0); setHistoryTick((value) => value + 1); };
   const saveArtwork = async () => {
@@ -126,8 +148,13 @@ export default function DrawingStudio({ coins, onReward }: { coins: number; onRe
   return <section className="drawing-page page-surface">
     <header className="drawing-header"><div><span>🎨 森林小画室</span><h1>照着画，也可以画得不一样</h1><p>从简单填色到创意挑战，慢慢练习小手控制和观察力。</p></div><div className="drawing-wallet"><span>🪙</span><strong>{coins}</strong><small>学习金币</small></div></header>
     {!sample ? <section className="drawing-picker"><header><span>第一步</span><div><small>今天想画什么？</small><h2>选一张喜欢的画</h2></div><strong>共 {samples.length} 张</strong></header><div>{samples.map((item, index) => <button key={item.id} onClick={() => chooseSample(item)} type="button"><figure><img src={item.image} alt={`${item.title}画画底稿`} /><i>{item.icon}</i>{completed.includes(item.id) && <em>画过啦 ✓</em>}</figure><div><small>第 {index + 1} 关 · {item.level}</small><strong>{item.title}</strong><p>{item.instruction}</p><span>选这张画 →</span></div></button>)}</div></section> : <div ref={layoutRef} className={`drawing-layout${isFullscreen ? " drawing-is-fullscreen" : ""}`}><section className="drawing-workspace"><header><div><small>{sample.category} · {sample.level}</small><h2>{sample.icon} {sample.title}</h2><p>{sample.instruction}</p></div><div className="drawing-workspace-actions"><strong>首次完成 +{sample.reward} 🪙</strong><button onClick={() => void toggleFullscreen()} type="button">{isFullscreen ? "↙ 退出全屏" : "⛶ 全屏画画"}</button><button className="drawing-change" onClick={returnToChoices} type="button">换一张</button></div></header>
-      <div className="drawing-stage"><img src={sample.image} alt={`${sample.title}临摹底稿`} style={{ opacity: templateOpacity }} /><canvas ref={canvasRef} width={1000} height={700} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} aria-label={`${sample.title}画板`} /></div>
-      <div className="drawing-toolbar"><div className="color-tools" aria-label="选择画笔颜色">{colors.map((item) => <button className={color === item && !eraser ? "active" : ""} key={item} onClick={() => { setColor(item); setEraser(false); }} style={{ background: item }} aria-label={`选择颜色 ${item}`} type="button" />)}</div><div className="brush-tools">{brushSizes.map((size) => <button className={brushSize === size ? "active" : ""} key={size} onClick={() => setBrushSize(size)} type="button"><i style={{ width: size / 2 + 5, height: size / 2 + 5 }} />{size === 6 ? "细" : size === 14 ? "中" : "粗"}</button>)}</div><div className="edit-tools"><button className={eraser ? "active" : ""} onClick={() => setEraser(!eraser)} type="button">🧽 橡皮</button><button disabled={undoStack.current.length === 0} onClick={undo} type="button">↶ 撤销</button><button disabled={redoStack.current.length === 0} onClick={redo} type="button">↷ 重做</button><button onClick={() => clearDrawing()} type="button">清空</button></div></div>
+      <div className="drawing-stage"><img src={sample.image} alt={`${sample.title}临摹底稿`} style={{ opacity: templateOpacity }} /><canvas className={eraser ? "is-erasing" : "is-drawing"} ref={canvasRef} width={1000} height={700} onPointerDown={startDrawing} onPointerMove={draw} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} onLostPointerCapture={stopDrawing} aria-label={`${sample.title}画板，当前使用${eraser ? "橡皮" : "画笔"}`} /></div>
+      <div className="drawing-toolbar">
+        <div className="drawing-primary-tools" aria-label="选择画画工具"><button className={!eraser ? "active" : ""} onClick={() => setEraser(false)} type="button"><span aria-hidden="true">✏️</span><b>画笔</b></button><button className={eraser ? "active" : ""} onClick={() => setEraser(true)} type="button"><span className="eraser-symbol" aria-hidden="true" /><b>橡皮</b></button></div>
+        <div className="color-tools" aria-label="选择画笔颜色">{colors.map((item) => <button className={color === item && !eraser ? "active" : ""} key={item} onClick={() => { setColor(item); setEraser(false); }} style={{ background: item }} aria-label={`选择颜色 ${item}`} type="button" />)}</div>
+        <div className="brush-tools" aria-label="选择笔触粗细">{brushSizes.map((size) => <button className={brushSize === size ? "active" : ""} key={size} onClick={() => setBrushSize(size)} type="button"><i style={{ width: size / 2 + 5, height: size / 2 + 5 }} />{size === 6 ? "细" : size === 14 ? "中" : "粗"}</button>)}</div>
+        <div className="edit-tools"><button disabled={undoStack.current.length === 0} onClick={undo} type="button"><span aria-hidden="true">↶</span>撤销</button><button disabled={redoStack.current.length === 0} onClick={redo} type="button"><span aria-hidden="true">↷</span>重做</button><button onClick={() => clearDrawing()} type="button"><span aria-hidden="true">🗑️</span>清空</button></div>
+      </div>
       <div className="template-control"><label>底稿清晰度 <input type="range" min="0.15" max="1" step="0.05" value={templateOpacity} onChange={(event) => setTemplateOpacity(Number(event.target.value))} /></label><button disabled={!hasDrawing} onClick={() => void saveArtwork()} type="button">{hasDrawing ? "收藏到我的画册 →" : "先画几笔吧"}</button></div>{notice && <div className="drawing-notice">🌟 {notice}</div>}</section>
       {!isFullscreen && <aside className="drawing-gallery"><header><div><small>本机最多保存8幅</small><h2>🖼️ 我的画册</h2></div><span>{gallery.length} 幅</span></header>{gallery.length === 0 ? <div className="empty-gallery"><span>🎨</span><strong>第一幅画在等你</strong><p>画好后点击“收藏到我的画册”。</p></div> : <div>{gallery.map((art) => <article key={art.id}><img src={art.image} alt={art.title} /><div><strong>{art.title}</strong><small>{art.date}</small></div></article>)}</div>}</aside>}</div>}
   </section>;

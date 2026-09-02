@@ -41,3 +41,7 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/.local-data/
+/tmp/
+*.tsbuildinfo
+/deployment-packages/*.tar.gz

@@ -1,4 +1,5 @@
 import { getCourseQuestions, getCourseQuestion, subjectDailyExtras, type QuestionItem } from "./questionBank";
+import { getDailyWordTrainWords, type WordTrainCard } from "./wordTrainBank";
 
 type Draft = Omit<QuestionItem, "id" | "grade" | "eyebrow" | "source">;
 
@@ -8,6 +9,62 @@ export const STUDY_PROGRAM_DAYS = 90;
 
 function normalizeStudyDay(day: number) {
   return Math.min(STUDY_PROGRAM_DAYS, Math.max(1, Math.round(day) || 1));
+}
+
+// 题目时间表示孩子完成“当前这一道交互”的大致用时，不拿手工填写值凑每日总时长。
+// 估算依据是题型、阅读量、操作步骤与难度；答案后的拓展学习属于可选内容，不虚加到做题时间。
+export function estimateQuestionMinutes(question: QuestionItem) {
+  const readableText = [question.prompt, question.visual, ...question.options]
+    .join(" ")
+    .replace(/[\p{Extended_Pictographic}\uFE0F]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const chineseCharacters = (readableText.match(/[\u3400-\u9fff]/g) ?? []).length;
+  const latinWords = (readableText.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) ?? []).length;
+  const readingUnits = chineseCharacters + latinWords * 2;
+
+  if (question.activityKind === "trace") {
+    const letters = (question.traceLetter ?? question.visual).replace(/\s+/g, "").length;
+    return letters > 4 ? 3 : 2;
+  }
+
+  if (question.type === "ordering") {
+    if (question.options.length <= 4 && readingUnits <= 60) return 1;
+    if (question.options.length <= 6 && readingUnits <= 120) return 2;
+    return 3;
+  }
+
+  if (question.type === "matching") {
+    const pairs = question.matchingPairs?.length ?? Math.ceil(question.options.length / 2);
+    return pairs <= 3 ? 2 : pairs <= 6 ? 3 : 4;
+  }
+
+  if (question.type === "fill_blank") {
+    return readingUnits > 120 || question.difficulty === 3 ? 2 : 1;
+  }
+
+  if (question.activityKind === "phonics") {
+    return readingUnits > 90 ? 2 : 1;
+  }
+
+  if (question.activityKind === "storybook") {
+    if (readingUnits > 260) return 5;
+    if (readingUnits > 180) return 4;
+    if (readingUnits > 100) return 3;
+    return 2;
+  }
+
+  // 单选/判断类：短题看一遍即可；材料变长、多步数学或高阶推理才增加时间。
+  let minutes = question.difficulty === 1 ? 1 : 2;
+  if (readingUnits > 180) minutes = Math.max(minutes, 4);
+  else if (readingUnits > 110) minutes = Math.max(minutes, 3);
+  if (question.mathModel?.kind === "steps") minutes = Math.max(minutes, 2);
+  if (question.difficulty === 3 && readingUnits > 80) minutes = Math.max(minutes, 3);
+  return Math.min(5, minutes);
+}
+
+function withEstimatedTime(question: QuestionItem): QuestionItem {
+  return { ...question, estimatedMinutes: estimateQuestionMinutes(question) };
 }
 
 function arrangeForStudyDay(items: QuestionItem[], day: number) {
@@ -28,6 +85,7 @@ function arrangeForStudyDay(items: QuestionItem[], day: number) {
       ...item,
       id: `${item.id}-day-${studyDay}`,
       eyebrow: `${item.grade} · 第${studyDay}天 · ${subject}`,
+      estimatedMinutes: estimateQuestionMinutes(item),
     }));
   });
 }
@@ -60,6 +118,61 @@ function makeEnglish(grade: string, index: number, draft: Draft): QuestionItem {
         }
       : draft;
   return { ...easierG8Draft, difficulty: easierG8Draft.difficulty > difficultyCeiling ? difficultyCeiling : easierG8Draft.difficulty, id: `${grade.toLowerCase()}-daily-english-${index + 1}`, grade, eyebrow: `${grade} · 英语学习站`, source: "local_core" };
+}
+
+function rotateChoices<T>(correct: T, distractors: T[], seed: number) {
+  const choices = [correct, ...distractors];
+  const offset = Math.abs(seed) % choices.length;
+  return [...choices.slice(offset), ...choices.slice(0, offset)];
+}
+
+function wordVocabulary(card: WordTrainCard) {
+  return [{
+    term: card.word,
+    tag: "每日词汇",
+    meaning: card.meaning,
+    expansion: `先听发音，再把 ${card.word} 和“${card.meaning}”联系起来。`,
+    example: `Today's word is ${card.word}.`,
+    exampleMeaning: `今天的单词是${card.word}（${card.meaning}）。`,
+  }];
+}
+
+// 同一个词在90天中按“汉译英 → 英译汉 → 看图认词 → 情境辨义”螺旋复习，
+// 而不是每天重复完全相同的题目。每24天进入下一种题型，90天内日路线保持独立。
+function makeDailyWordQuestions(grade: string, day: number): QuestionItem[] {
+  const words = getDailyWordTrainWords(grade, day, 8);
+  const cycle = Math.floor((day - 1) / 24);
+  const difficulty: QuestionItem["difficulty"] = ["G3", "G4"].includes(grade) ? 1 : 2;
+  const subject = englishSubject(grade);
+
+  return words.map((card, index) => {
+    const otherOne = words[(index + 3) % words.length];
+    const otherTwo = words[(index + 5) % words.length];
+    const mode = (index + cycle) % 4;
+    const base = {
+      id: `${grade.toLowerCase()}-word-spiral-${card.id}-${cycle + 1}`,
+      grade,
+      subject,
+      eyebrow: `${grade} · 第${day}天 · 单词螺旋复习`,
+      source: "local_core" as const,
+      knowledgePoint: "分级核心词汇",
+      type: "single_choice" as const,
+      difficulty,
+      vocabulary: wordVocabulary(card),
+      estimatedMinutes: 3,
+    };
+
+    if (mode === 0) {
+      return { ...base, title: `会说 ${card.meaning}`, prompt: `“${card.meaning}”用英语怎么说？`, visual: card.icon, options: rotateChoices(card.word, [otherOne.word, otherTwo.word], day + index), answer: card.word, explanation: `${card.meaning}是 ${card.word}。`, activityKind: "cn_to_en" as const };
+    }
+    if (mode === 1) {
+      return { ...base, title: `听懂 ${card.word}`, prompt: `${card.word} 是什么意思？`, visual: `🔊 ${card.word}`, options: rotateChoices(card.meaning, [otherOne.meaning, otherTwo.meaning], day + index), answer: card.meaning, explanation: `${card.word} 的意思是${card.meaning}。`, activityKind: "en_to_cn" as const };
+    }
+    if (mode === 2) {
+      return { ...base, title: `看图找到 ${card.word}`, prompt: `看图，选择对应的英文单词。`, visual: card.icon, options: rotateChoices(card.word, [otherOne.word, otherTwo.word], day + index), answer: card.word, explanation: `${card.icon} 对应的英文单词是 ${card.word}。`, activityKind: "practice" as const };
+    }
+    return { ...base, title: `词义侦探 ${card.word}`, prompt: `Leo 的单词卡写着“${card.word}”，哪一个解释正确？`, visual: `🕵️ ${card.word}`, options: rotateChoices(card.meaning, [otherOne.meaning, otherTwo.meaning], day + index), answer: card.meaning, explanation: `${card.word} 表示${card.meaning}，可以通过发音、图片和例句一起记忆。`, activityKind: "reading" as const };
+  });
 }
 
 type AlphabetSeed = {
@@ -124,13 +237,19 @@ function makeAlphabetJourney(grade: string, day: number): QuestionItem[] {
   const wordOptions = [`${seed.icon} ${seed.word}`, `${distractors[0].icon} ${distractors[0].word}`, `${distractors[1].icon} ${distractors[1].word}`];
   const prefix = `${grade.toLowerCase()}-alphabet-${seed.lower}`;
   const eyebrow = `${grade} · 第${studyDay}天 · 字母乐园 · 第${cycle}轮`;
+  const cycleMission = [
+    "第一次见面：观察字母的形状",
+    "第二轮复习：先听声音再认字形",
+    "第三轮挑战：少看提示独立判断",
+    "第四轮应用：把字母放进单词里",
+  ][Math.min(cycle, 4) - 1];
 
   return [
     {
       id: `${prefix}-recognize-day-${studyDay}`, grade, subject, eyebrow, source: "local_core",
       knowledgePoint: "字母认识", type: "single_choice", difficulty: 1,
       title: `第1关 · 认识 ${seed.upper} ${seed.lower}`,
-      prompt: grade === "G1" ? `这位卡通字母朋友是谁？` : `哪一组是字母 ${seed.upper} 的大写和小写？`,
+      prompt: grade === "G1" ? `${cycleMission}。这位卡通字母朋友是谁？` : `${cycleMission}。哪一组是字母 ${seed.upper} 的大写和小写？`,
       visual, options: recognitionOptions, answer: recognitionAnswer,
       explanation: `${seed.upper} 是大写，${seed.lower} 是小写，它们是同一个字母。`,
       optionExplanations: Object.fromEntries(recognitionOptions.map((option) => [option, option === recognitionAnswer ? `${seed.upper} 和 ${seed.lower} 是正确的大小写字形。` : `这是字母 ${option}，不是今天认识的字母 ${seed.upper}。`])),
@@ -288,29 +407,70 @@ function withMeta(question: QuestionItem, index: number, minutes = 3): QuestionI
   return { ...question, id: `${question.id}-daily-${index + 1}`, activityKind: question.activityKind ?? "practice", estimatedMinutes: question.estimatedMinutes ?? minutes };
 }
 
+function selectDailyWindow<T>(items: T[], count: number, day: number, step = 1) {
+  if (!items.length) return [];
+  const start = ((normalizeStudyDay(day) - 1) * step) % items.length;
+  return Array.from({ length: Math.min(count, items.length) }, (_, index) => items[(start + index) % items.length]);
+}
+
 export function getDailyCurriculum(grade: string, day = 1): QuestionItem[] {
+  const studyDay = normalizeStudyDay(day);
   const englishName = englishSubject(grade);
-  const coreEnglish = getCourseQuestions(englishName, grade)
-    .filter((question) => !(["G1", "G2"].includes(grade) && question.knowledgePoint.includes("字母")))
-    .slice(0, 3)
+  const isEarlyYears = ["G1", "G2"].includes(grade);
+
+  // G1-G2 保留字母闯关和绘本启蒙路线，避免把低幼学习切得太碎。
+  if (isEarlyYears) {
+    const coreEnglish = getCourseQuestions(englishName, grade)
+      .filter((question) => !question.knowledgePoint.includes("字母"))
+      .slice(0, 3)
+      .map((question, index) => withMeta(question, index, 3));
+    const addedEnglish = (englishDaily[grade] ?? englishDaily.G3)
+      .filter((draft) => draft.activityKind === "storybook")
+      .map((draft, index) => makeEnglish(grade, index, draft));
+    const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, index) => {
+      const base = withMeta(getCourseQuestion(course, grade), index + 8, index === 1 ? 4 : 3);
+      const extras = (subjectDailyExtras[course]?.[grade] ?? []).map((draft, extraIndex) =>
+        withMeta({ ...draft, id: `${grade.toLowerCase()}-${course}-daily-${extraIndex + 1}`, grade, eyebrow: `${grade} · ${course}`, source: "local_core" }, index * 4 + extraIndex + 9, 3),
+      );
+      return [base, ...extras];
+    });
+    const dailyBase = arrangeForStudyDay([...coreEnglish, ...addedEnglish, ...companion], studyDay);
+    return [...makeAlphabetJourney(grade, studyDay), ...dailyBase].map(withEstimatedTime);
+  }
+
+  // G3-G8：每天轮换 6 个精读/语法核心站，并加入 8 个分级词汇螺旋站。
+  // 六门伴随学科每天各取 2 站，既保持 80 分钟以上密度，也避免每天整库照搬。
+  const englishPool = [
+    ...getCourseQuestions(englishName, grade),
+    ...(englishDaily[grade] ?? englishDaily.G3).map((draft, index) => makeEnglish(grade, index, draft)),
+  ];
+  const coreEnglish = selectDailyWindow(englishPool, 6, studyDay, 2)
     .map((question, index) => withMeta(question, index, 3));
-  const addedEnglish = (englishDaily[grade] ?? englishDaily.G3)
-    .filter((draft) => ["G1", "G2"].includes(grade) ? draft.activityKind === "storybook" : true)
-    .map((draft, index) => makeEnglish(grade, index, draft));
-  const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, index) => {
-    // 基础题：健康习惯优先用 primaryHealthDaily 的每日健康题，其余科目用基础题库
-    const base: QuestionItem =
-      course === "健康习惯" && primaryHealthDaily[grade]
-        ? { ...primaryHealthDaily[grade], id: `${grade.toLowerCase()}-daily-health`, grade, eyebrow: `${grade} · 健康习惯`, source: "local_core" }
-        : withMeta(getCourseQuestion(course, grade), index + 8, index === 1 ? 4 : 3);
-    // 每日补充题：subjectDailyExtras 每科每年级 3 题，让每日课程每科达到 4 站
-    const extras = (subjectDailyExtras[course]?.[grade] ?? []).map((draft, extraIndex) =>
-      withMeta({ ...draft, id: `${grade.toLowerCase()}-${course}-daily-${extraIndex + 1}`, grade, eyebrow: `${grade} · ${course}`, source: "local_core" }, index + 8, 3),
+  const wordSpiral = makeDailyWordQuestions(grade, studyDay);
+  const companion = (companionCourses[grade] ?? companionCourses.G3).flatMap((course, courseIndex) => {
+    const pool = getCourseQuestions(course, grade);
+    return selectDailyWindow(pool, 2, studyDay, 2).map((question, questionIndex) =>
+      withMeta(question, 20 + courseIndex * 2 + questionIndex, course === "数学" ? 4 : 3),
     );
-    return [base, ...extras];
   });
-  const dailyBase = arrangeForStudyDay([...coreEnglish, ...addedEnglish, ...companion], day);
-  return ["G1", "G2"].includes(grade) ? [...makeAlphabetJourney(grade, day), ...dailyBase] : dailyBase;
+  return arrangeForStudyDay([...coreEnglish, ...wordSpiral, ...companion], studyDay).map(withEstimatedTime);
+}
+
+export function auditQuestionTiming() {
+  return Object.keys(englishDaily).flatMap((grade) =>
+    Array.from({ length: STUDY_PROGRAM_DAYS }, (_, index) => index + 1).flatMap((day) =>
+      getDailyCurriculum(grade, day).map((question) => ({
+        grade,
+        day,
+        id: question.id,
+        type: question.type,
+        activityKind: question.activityKind,
+        difficulty: question.difficulty,
+        minutes: question.estimatedMinutes ?? 0,
+        expectedMinutes: estimateQuestionMinutes(question),
+      })),
+    ),
+  );
 }
 
 export function auditDailyCurriculum() {
@@ -364,8 +524,62 @@ export function auditMathGradeAlignment() {
   });
 }
 
-// 每日课程 = 英语 8 站 + 六门伴随学科各 4 站（基础1 + subjectDailyExtras 3）；要求：总站数 ≥14、英语 ≥8、时长 ≥40 分钟
-const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishCount < 8 || plan.minutes < 40);
+function normalizeQuestionText(text: string) {
+  return text.normalize("NFKC").toLocaleLowerCase().replace(/[\p{P}\p{S}\s]/gu, "");
+}
+
+// 题目 ID 即使不同，题干仍可能重复。这里扫描课程中心实际可见的全部本地题，
+// 用统一大小写、空白与标点后的题干做指纹，防止后续补题时把旧题换个 ID 再放回来。
+export function auditQuestionUniqueness() {
+  const seen = new Map<string, string>();
+  const duplicates: Array<{ first: string; duplicate: string; prompt: string }> = [];
+
+  Object.keys(companionCourses).forEach((grade) => {
+    const courses = [englishSubject(grade), ...(companionCourses[grade] ?? [])];
+    courses.forEach((course) => {
+      getCourseQuestions(course, grade).forEach((question) => {
+        const fingerprint = normalizeQuestionText(question.prompt);
+        const label = `${grade}/${course}/${question.title}`;
+        const first = seen.get(fingerprint);
+        if (first) duplicates.push({ first, duplicate: label, prompt: question.prompt });
+        else seen.set(fingerprint, label);
+      });
+    });
+  });
+
+  return { total: seen.size, duplicates };
+}
+
+function dailyContentSignature(items: QuestionItem[]) {
+  return items.map((item) => [
+    item.subject,
+    item.knowledgePoint,
+    item.title,
+    item.prompt,
+    item.visual ?? "",
+    item.options.join("|"),
+    item.answer,
+  ].map(normalizeQuestionText).join("::")).join("||");
+}
+
+// 检查90天的“实际可见内容”，不使用每天都会变化的 id/eyebrow 充数。
+// 相同知识点可以间隔复习，但每天的整条学习路线不能只是旧题换顺序。
+export function auditProgramVariety() {
+  return Object.keys(englishDaily).map((grade) => {
+    const seen = new Map<string, number>();
+    const repeatedDays: Array<{ day: number; repeatsDay: number }> = [];
+    for (let day = 1; day <= STUDY_PROGRAM_DAYS; day += 1) {
+      const signature = dailyContentSignature(getDailyCurriculum(grade, day));
+      const firstDay = seen.get(signature);
+      if (firstDay) repeatedDays.push({ day, repeatsDay: firstDay });
+      else seen.set(signature, day);
+    }
+    return { grade, uniqueDailyRoutes: seen.size, repeatedDays };
+  });
+}
+
+// 每日路线的内容密度由题量和学科占比保证；不能通过虚增单题分钟数来凑总时长。
+const invalidPlans = auditDailyCurriculum().filter((plan) => plan.total < 14 || plan.englishRatio < 0.5);
 if (invalidPlans.length) throw new Error(`每日课程密度不达标：${invalidPlans.map((plan) => plan.grade).join(", ")}`);
 const invalidStudyDays = auditStudyProgram().filter((plan) => plan.total < 14 || plan.uniqueIds !== plan.total || !plan.taggedForDay);
 if (invalidStudyDays.length) throw new Error(`90天排课异常：${invalidStudyDays.slice(0, 5).map((plan) => `${plan.grade}第${plan.day}天`).join("、")}`);
@@ -373,3 +587,7 @@ const misalignedGrades = auditGradeDifficulty().filter((item) => item.averageDif
 if (misalignedGrades.length) throw new Error(`年级难度回退：${misalignedGrades.map((item) => `${item.grade}${item.regressions.length ? `(${item.regressions.join("、")})` : ""}`).join(", ")}`);
 const outOfGradeMath = auditMathGradeAlignment().filter((item) => item.violations.length > 0);
 if (outOfGradeMath.length) throw new Error(`数学内容超出年级：${outOfGradeMath.map((item) => `${item.grade}(${item.violations.join("、")})`).join(", ")}`);
+const questionUniqueness = auditQuestionUniqueness();
+if (questionUniqueness.duplicates.length) throw new Error(`本地题库存在重复题：${questionUniqueness.duplicates.slice(0, 5).map((item) => `${item.first} / ${item.duplicate}`).join("；")}`);
+const repeatedPrograms = auditProgramVariety().filter((item) => item.uniqueDailyRoutes < STUDY_PROGRAM_DAYS);
+if (repeatedPrograms.length) throw new Error(`90天存在整日重复路线：${repeatedPrograms.map((item) => `${item.grade}(${item.uniqueDailyRoutes}/90)`).join(", ")}`);

@@ -1,6 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import PwaInstaller from "./components/PwaInstaller";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#245b35",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -14,9 +22,18 @@ export async function generateMetadata(): Promise<Metadata> {
       template: "%s｜小狗的森林学堂",
     },
     description: "3至12岁孩子的八级智能学习平台，让系统自动出题、整理错题并安排复习。",
+    manifest: "/manifest.webmanifest",
+    applicationName: "小狗的森林学堂",
+    formatDetection: { telephone: false },
+    appleWebApp: {
+      capable: true,
+      title: "森林学堂",
+      statusBarStyle: "default",
+    },
     icons: {
       icon: "/favicon.svg",
       shortcut: "/favicon.svg",
+      apple: "/icons/apple-touch-icon.png",
     },
     openGraph: {
       title: "小狗的森林学堂 V4",
@@ -39,6 +56,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <a className="skip-link" href="#main-content">跳到主要内容</a>
         {children}
+        <PwaInstaller />
       </body>
     </html>
   );
