@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ple1aLessonCount, ple1aUnits, type PleExpansion, type PleLesson } from "@/data/ple1aCourse";
+import Ple1aPageReader from "./Ple1aPageReader";
 import { TtsButton } from "./TtsButton";
 
 const PROGRESS_KEY = "puppy-forest-ple1a-progress";
@@ -38,7 +39,7 @@ function readProgress() {
   }
 }
 
-function LessonContent({ lesson, completed, onComplete }: { lesson: PleLesson; completed: boolean; onComplete: () => void }) {
+function LessonContent({ lesson, completed, onComplete, onOpenPage }: { lesson: PleLesson; completed: boolean; onComplete: () => void; onOpenPage: () => void }) {
   const [expansion, setExpansion] = useState<PleExpansion>(lesson.expansion);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
@@ -74,7 +75,7 @@ function LessonContent({ lesson, completed, onComplete }: { lesson: PleLesson; c
     <article className="ple-lesson-content">
       <header className="ple-lesson-heading">
         <div><span>{lesson.icon}</span><div><small>{lesson.pages} · {lesson.kind}</small><h2>{lesson.title}</h2><p>{lesson.subtitle}</p></div></div>
-        {completed && <em>已完成 ✓</em>}
+        <div className="ple-lesson-heading-actions">{completed && <em>已完成 ✓</em>}<button onClick={onOpenPage} type="button">📖 打开对应原页</button></div>
       </header>
 
       <section className="ple-goals"><h3>🎯 Learning goals · 这节课学什么</h3><div>{lesson.goals.map((goal, index) => <span key={goal}><b>Goal {index + 1}</b>{goal}</span>)}</div></section>
@@ -121,12 +122,14 @@ export default function Ple1aCourse({ onBack, onReward }: { onBack: () => void; 
   const [unitId, setUnitId] = useState(ple1aUnits[0].id);
   const [lessonId, setLessonId] = useState(ple1aUnits[0].lessons[0].id);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [readerPage, setReaderPage] = useState<number | null>(null);
 
   useEffect(() => setCompletedIds(readProgress()), []);
 
   const unit = useMemo(() => ple1aUnits.find((item) => item.id === unitId) ?? ple1aUnits[0], [unitId]);
   const lesson = useMemo(() => unit.lessons.find((item) => item.id === lessonId) ?? unit.lessons[0], [lessonId, unit]);
   const progress = Math.round(completedIds.length / ple1aLessonCount * 100);
+  const currentBookPage = Number(lesson.pages.match(/\d+/)?.[0] ?? 1);
 
   const selectUnit = (nextUnitId: string) => {
     const nextUnit = ple1aUnits.find((item) => item.id === nextUnitId) ?? ple1aUnits[0];
@@ -144,10 +147,12 @@ export default function Ple1aCourse({ onBack, onReward }: { onBack: () => void; 
     onReward(2);
   };
 
+  if (readerPage !== null) return <Ple1aPageReader initialPage={readerPage} onBack={() => setReaderPage(null)} />;
+
   return (
     <section className="ple-course">
       <button className="ple-back" onClick={onBack} type="button">← 返回课程中心</button>
-      <header className="ple-hero"><div><span className="ple-book-icon">📘</span><div><small>学校同步教材 · 香港小学一年级</small><h1>Primary Longman Express 1A</h1><p>按课本顺序整理词汇、重点句、语法、拼读和回家练习，每一句都可听中英文发音。</p><div className="ple-tags"><span>6个单元</span><span>28个课时</span><span>双语发音</span><span>AI知识拓展</span></div></div></div><aside><strong>{progress}%</strong><span>教材进度</span><i><b style={{ width: `${progress}%` }} /></i><small>{completedIds.length} / {ple1aLessonCount} 课</small></aside></header>
+      <header className="ple-hero"><div><span className="ple-book-icon">📘</span><div><small>学校同步教材 · 香港小学一年级</small><h1>Primary Longman Express 1A</h1><p>按课本顺序整理词汇、重点句、语法、拼读和回家练习，每一句都可听中英文发音。</p><div className="ple-tags"><span>6个单元</span><span>28个课时</span><span>98页原版教材</span><span>逐页点读</span><span>双语发音</span><span>智能知识拓展</span></div><button className="ple-open-reader" onClick={() => setReaderPage(9)} type="button">📖 打开98页原版点读教材 →</button></div></div><aside><strong>{progress}%</strong><span>教材进度</span><i><b style={{ width: `${progress}%` }} /></i><small>{completedIds.length} / {ple1aLessonCount} 课</small></aside></header>
 
       <nav className="ple-unit-tabs" aria-label="PLE 1A单元目录">
         {ple1aUnits.map((item) => <button className={`${item.color} ${unit.id === item.id ? "active" : ""}`} key={item.id} onClick={() => selectUnit(item.id)} type="button"><span>{item.icon}</span><div><small>{item.number <= 6 ? `Unit ${item.number}` : "Review"}</small><strong>{item.title}</strong><em>{item.zh}</em></div><b>{item.lessons.filter((entry) => completedIds.includes(entry.id)).length}/4</b></button>)}
@@ -155,7 +160,7 @@ export default function Ple1aCourse({ onBack, onReward }: { onBack: () => void; 
 
       <div className="ple-course-layout">
         <aside className="ple-lesson-menu"><header><small>{unit.number <= 6 ? `Unit ${unit.number}` : "Review"}</small><h2>{unit.title}</h2><strong>{unit.zh}</strong><p>{unit.theme}</p></header>{unit.lessons.map((item, index) => <button className={lesson.id === item.id ? "active" : ""} key={item.id} onClick={() => setLessonId(item.id)} type="button"><span>{completedIds.includes(item.id) ? "✅" : item.icon}</span><div><small>Lesson {index + 1} · 第{index + 1}课 · {item.kind}</small><strong>{item.title}</strong><i>{item.subtitle}</i><em>{item.pages}</em></div></button>)}</aside>
-        <LessonContent lesson={lesson} completed={completedIds.includes(lesson.id)} onComplete={completeLesson} />
+        <LessonContent lesson={lesson} completed={completedIds.includes(lesson.id)} onComplete={completeLesson} onOpenPage={() => setReaderPage(Math.min(98, currentBookPage + 8))} />
       </div>
     </section>
   );
