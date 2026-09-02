@@ -6,10 +6,21 @@ const tsvDir = join(root, "tmp/pdfs/ple1a_tsv");
 const output = join(root, "data/ple1aPageText.generated.json");
 
 const tidy = (value) => value
+  // 课本中的录音/练习图标会被 OCR 误识别成 re)、rw) 等短前缀。
+  .replace(/^\s*(?:re|rw)\)\s*/i, "")
+  .replace(/^\s*oo\s+(?=Read\b)/i, "")
+  .replace(/^\s*we\s+(?=Read\b)/i, "")
+  .replace(/^\s*ia\)\s*/i, "")
+  .replace(/^\s*cy\s+(?=We\s+can\b)/i, "")
+  .replace(/^\s*[¢*}]\s*/, "")
   .replace(/^\s*(?:oe|[|>]+)\s+(?=[A-Za-z])/i, "")
   .replace(/^\s*[a-z]\s+(?=[A-Z])/g, "")
+  .replace(/^\s*\|(?=am\b)/i, "I ")
   .replace(/[|l]\s+am\b/g, "I am")
   .replace(/\bIam\b/g, "I am")
+  .replace(/\blam\b/g, "I am")
+  .replace(/\bListeningactivity\b/g, "Listening activity")
+  .replace(/\bIcan\b/g, "I can")
   .replace(/\s+([,.;:!?])/g, "$1")
   .replace(/\s+/g, " ")
   .trim();
