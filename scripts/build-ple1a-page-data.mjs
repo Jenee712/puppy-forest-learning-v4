@@ -22,6 +22,7 @@ const tidy = (value) => value
   .replace(/^\s*(?:oe|[|>]+)\s+(?=[A-Za-z])/i, "")
   // 黄色耳机图标在个别听力标题前会被识别成 "od"。
   .replace(/^\s*od\s+(?=[A-Z]\s+Listen\b)/, "")
+  .replace(/^\s*•\s+(?=[A-Z]\s+(?:Listen|Read|Look|Write|Tick|Circle|Match|Complete|Finish|Say|Ask|Point|Choose)\b)/, "")
   .replace(/^\s*[a-z]\s+(?=[A-Z])/g, "")
   .replace(/^\s*\|(?=am\b)/i, "I ")
   .replace(/[|l]\s+am\b/g, "I am")
@@ -34,6 +35,8 @@ const tidy = (value) => value
   .trim();
 
 function likelyEnglish(text, confidence) {
+  // AS 是课本边栏的 Activity Sheet 图标；这一条残缺文字来自圆形编号图标附近。
+  if (/^AS$/i.test(text) || /^@\s*Look!\s*T$/i.test(text)) return false;
   const letters = (text.match(/[A-Za-z]/g) ?? []).length;
   const visible = text.replace(/\s/g, "").length;
   const words = text.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) ?? [];

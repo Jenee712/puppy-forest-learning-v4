@@ -1,4 +1,4 @@
-import { findPle1aLesson, type PleExpansion } from "@/data/ple1aCourse";
+import { findPle1aLesson, findPle1aLessonByBookPage, type PleExpansion } from "@/data/ple1aCourse";
 
 const API_URL = "https://api.deepseek.com/chat/completions";
 
@@ -22,12 +22,15 @@ function parseJson(text: string) {
 
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get("content-length") ?? 0);
-  if (contentLength > 2_000) return Response.json({ error: "请求内容过大" }, { status: 413 });
+  if (contentLength > 5_000) return Response.json({ error: "请求内容过大" }, { status: 413 });
 
   let body: unknown;
   try { body = await request.json(); } catch { return Response.json({ error: "请求格式错误" }, { status: 400 }); }
-  const lessonId = typeof body === "object" && body !== null && typeof (body as { lessonId?: unknown }).lessonId === "string" ? (body as { lessonId: string }).lessonId : "";
-  const found = findPle1aLesson(lessonId);
+  const data = typeof body === "object" && body !== null ? body as { lessonId?: unknown; page?: unknown; context?: unknown } : {};
+  const lessonId = typeof data.lessonId === "string" ? data.lessonId : "";
+  const pdfPage = typeof data.page === "number" ? Math.max(1, Math.min(98, Math.round(data.page))) : null;
+  const pageContext = typeof data.context === "string" ? data.context.trim().slice(0, 1_600) : "";
+  const found = lessonId ? findPle1aLesson(lessonId) : pdfPage ? findPle1aLessonByBookPage(pdfPage - 8) : null;
   if (!found) return Response.json({ error: "没有找到这个教材课时" }, { status: 404 });
 
   const fallback = found.lesson.expansion;
@@ -43,6 +46,8 @@ export async function POST(request: Request) {
     vocabulary: found.lesson.vocabulary,
     sentences: found.lesson.sentences,
     knowledge: found.lesson.knowledge,
+    page: pdfPage ? `PDF第${pdfPage}页／课本第${pdfPage - 8}页` : found.lesson.pages,
+    pageText: pageContext,
   };
 
   try {
@@ -51,13 +56,13 @@ export async function POST(request: Request) {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
+        model: "deepseek-chat",
         temperature: 0.25,
         max_tokens: 700,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "你是香港小学一年级英语老师。只依据给定教材课时做安全、准确的中英双语知识拓展。英文要短、自然、适合6至7岁儿童；中文只用简体字。语气亲切；不涉及政治、医疗、成人内容、消费品牌，不编造课本事实。只输出JSON，不要Markdown。JSON结构必须是：{\"titleEn\":\"English title\",\"title\":\"中文短标题\",\"knowledgeEn\":[\"English point 1\",\"English point 2\",\"English point 3\"],\"knowledge\":[\"中文知识1\",\"中文知识2\",\"中文知识3\"],\"challengeEn\":\"English challenge\",\"challenge\":\"中文挑战\"}。knowledgeEn与knowledge必须逐项对应。" },
-          { role: "user", content: `请围绕这节PLE 1A课生成一组不同于原有知识点、但难度适中的拓展：${JSON.stringify(lessonSummary)}` },
+          { role: "user", content: `请优先围绕当前这一页的内容生成一组不同于原有知识点、但难度适中的拓展；不要讲到本页未出现的生词：${JSON.stringify(lessonSummary)}` },
         ],
       }),
     });

@@ -367,3 +367,15 @@ export function findPle1aLesson(id: string) {
   }
   return null;
 }
+
+export function findPle1aLessonByBookPage(bookPage: number) {
+  for (const unit of ple1aUnits) {
+    for (const item of unit.lessons) {
+      const pageNumbers = item.pages.match(/\d+/g)?.map(Number) ?? [];
+      const start = pageNumbers[0];
+      const end = pageNumbers[1] ?? start;
+      if (start !== undefined && bookPage >= start && bookPage <= end) return { unit, lesson: item };
+    }
+  }
+  return null;
+}

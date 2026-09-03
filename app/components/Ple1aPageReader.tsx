@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import pageData from "@/data/ple1aPageText.generated.json";
+import { findPle1aLessonByBookPage, type PleExpansion } from "@/data/ple1aCourse";
 import { playPreferredAudio } from "@/lib/tts/playTts";
 import { TtsButton } from "./TtsButton";
 
@@ -16,19 +17,53 @@ function pageLabel(page: PageRecord) {
   return `课本第${page.bookPage}页 · PDF第${page.page}页`;
 }
 
+function expansionEnglish(expansion: PleExpansion, lessonTitle: string) {
+  return {
+    title: expansion.titleEn ?? `More about ${lessonTitle}`,
+    knowledge: expansion.knowledgeEn ?? expansion.knowledge.map((_, index) => `Try idea ${index + 1} with a sentence from this page.`),
+    challenge: expansion.challengeEn ?? "Use one sentence from this page in a new situation.",
+  };
+}
+
 export default function Ple1aPageReader({ initialPage = 9, onBack }: { initialPage?: number; onBack: () => void }) {
   const [pageNumber, setPageNumber] = useState(Math.max(1, Math.min(pages.length, initialPage)));
   const [selected, setSelected] = useState<PageLine | null>(null);
   const [help, setHelp] = useState<PageHelp | null>(null);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [pageExpansion, setPageExpansion] = useState<PleExpansion | null>(null);
+  const [expansionLoading, setExpansionLoading] = useState(false);
+  const [expansionNotice, setExpansionNotice] = useState("");
   const page = pages[pageNumber - 1] ?? pages[0];
   const context = useMemo(() => page.lines.map((item) => item.text).join(" ").slice(0, 1_200), [page]);
+  const pageLesson = useMemo(() => page.bookPage === null ? null : findPle1aLessonByBookPage(page.bookPage), [page.bookPage]);
+  const englishExpansion = pageExpansion && pageLesson ? expansionEnglish(pageExpansion, pageLesson.lesson.title) : null;
 
   const changePage = (next: number) => {
     setPageNumber(Math.max(1, Math.min(pages.length, next)));
     setSelected(null); setHelp(null); setNotice("");
+    setPageExpansion(null); setExpansionNotice("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const expandPage = async () => {
+    if (!pageLesson) return;
+    setExpansionLoading(true); setExpansionNotice("");
+    try {
+      const response = await fetch("/api/textbook-expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page: page.page, context }),
+      });
+      const result = await response.json() as { expansion?: PleExpansion; fallback?: boolean; error?: string };
+      if (!response.ok || !result.expansion) throw new Error(result.error ?? "AI拓展暂时不可用");
+      setPageExpansion(result.expansion);
+      setExpansionNotice(result.fallback ? "已打开老师预备的本页相关拓展" : "DeepSeek已结合本页内容生成新的拓展");
+    } catch (error) {
+      setExpansionNotice(error instanceof Error ? error.message : "AI拓展暂时不可用");
+    } finally {
+      setExpansionLoading(false);
+    }
   };
 
   const selectLine = async (line: PageLine) => {
@@ -96,6 +131,19 @@ export default function Ple1aPageReader({ initialPage = 9, onBack }: { initialPa
           </>}
         </aside>
       </div>
+
+      {pageLesson && <section className="ple-page-ai-expand" aria-live="polite">
+        <header>
+          <div><span>🦉</span><div><small>DeepSeek · AI本页拓展</small><h2>学完这一页，再多懂一点</h2><p>围绕课本第{page.bookPage}页讲解相关词句、用法和生活情境，不改变教材原意。</p></div></div>
+          <button disabled={expansionLoading} onClick={() => void expandPage()} type="button">{expansionLoading ? "老师正在准备…" : pageExpansion ? "换一组本页拓展 ✨" : "AI讲解本页 ✨"}</button>
+        </header>
+        {!pageExpansion ? <div className="ple-page-ai-empty"><span>🔊</span><p>点击后会生成中英双语拓展；每一条英文和中文都可以单独听发音。</p></div> : englishExpansion && <div className="ple-page-ai-content">
+          <div className="ple-page-ai-title"><div><small>本页拓展主题</small><strong>{englishExpansion.title}</strong><p>{pageExpansion.title}</p></div><div><TtsButton text={englishExpansion.title} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={pageExpansion.title} segment="sentence" label="听中文" language="zh" /></div></div>
+          <div className="ple-page-ai-points">{pageExpansion.knowledge.map((item, index) => { const english = englishExpansion.knowledge[index] ?? englishExpansion.knowledge[0]; return <article key={`${index}-${item}`}><span>{index + 1}</span><div><strong>{english}</strong><p>{item}</p><footer><TtsButton text={english} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={item} segment="sentence" label="听中文" language="zh" /></footer></div></article>; })}</div>
+          <article className="ple-page-ai-challenge"><span>🌟</span><div><small>试一试</small><strong>{englishExpansion.challenge}</strong><p>{pageExpansion.challenge}</p><footer><TtsButton text={englishExpansion.challenge} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={pageExpansion.challenge} segment="sentence" label="听中文" language="zh" /></footer></div></article>
+        </div>}
+        {expansionNotice && <p className="ple-page-ai-notice">{expansionNotice}</p>}
+      </section>}
     </section>
   );
 }
