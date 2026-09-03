@@ -12,9 +12,97 @@ type PageHelp = {
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+const textbookLabels: Record<string, PageHelp> = {
+  "structure table": {
+    translation: "句型结构表",
+    childExplanation: "这里把句子的组成方式整理成表格，帮助你看清每个词应该放在哪里。",
+    keyPoints: ["先看句子开头", "再看人物、动作或物品的位置"],
+    exampleEn: "This is my friend.",
+    exampleZh: "这是我的朋友。",
+  },
+  reading: {
+    translation: "阅读",
+    childExplanation: "这一部分要读短文或故事，看看人物做了什么、说了什么。",
+    keyPoints: ["先看图片猜内容", "再读英文找人物和动作"],
+    exampleEn: "Read the story.",
+    exampleZh: "读一读这个故事。",
+  },
+  "language focus": {
+    translation: "语言重点",
+    childExplanation: "这一部分会学习本课最重要的句型和表达方法。",
+    keyPoints: ["留意句子结构", "试着换一个词再说一遍"],
+    exampleEn: "This is my teacher.",
+    exampleZh: "这是我的老师。",
+  },
+  vocabulary: {
+    translation: "词汇",
+    childExplanation: "这一部分会学习本课的新单词。先听发音，再结合图片记住意思。",
+    keyPoints: ["听清单词发音", "把单词放进短句里"],
+    exampleEn: "This is a book.",
+    exampleZh: "这是一本书。",
+  },
+  phonics: {
+    translation: "自然拼读",
+    childExplanation: "这一部分学习字母或字母组合的发音，帮助你看到单词就能尝试读出来。",
+    keyPoints: ["先听目标音", "再跟读含有这个音的单词"],
+    exampleEn: "Listen and say.",
+    exampleZh: "听一听，说一说。",
+  },
+  skill: {
+    translation: "学习技能",
+    childExplanation: "这里告诉你这一页要练习哪一种英语能力。",
+    keyPoints: ["先看清任务", "按步骤完成练习"],
+    exampleEn: "Listen and read.",
+    exampleZh: "听一听，读一读。",
+  },
+  task: {
+    translation: "任务",
+    childExplanation: "这里是需要你完成的小任务，先看要求，再一步一步做。",
+    keyPoints: ["先读任务要求", "完成后再检查一次"],
+    exampleEn: "Complete the task.",
+    exampleZh: "完成这项任务。",
+  },
+  "your task": {
+    translation: "你的任务",
+    childExplanation: "轮到你运用刚学过的单词和句型完成任务了。",
+    keyPoints: ["回想本课句型", "大胆开口表达"],
+    exampleEn: "Talk about your friend.",
+    exampleZh: "说一说你的朋友。",
+  },
+  values: {
+    translation: "品德成长",
+    childExplanation: "这里会通过英语内容学习友善、礼貌和好习惯。",
+    keyPoints: ["理解故事里的做法", "想想自己可以怎样做"],
+    exampleEn: "Be kind to your friends.",
+    exampleZh: "友善地对待朋友。",
+  },
+  extension: {
+    translation: "拓展学习",
+    childExplanation: "这里会在课本内容上多学一点，帮助你把英语用到新的情境里。",
+    keyPoints: ["先复习课本内容", "再尝试新的表达"],
+    exampleEn: "Try another example.",
+    exampleZh: "再试一个例子。",
+  },
+  "post reading": {
+    translation: "阅读后练习",
+    childExplanation: "读完故事后，用这些问题检查自己是否看懂了。",
+    keyPoints: ["回到原文找答案", "用完整句子回答"],
+    exampleEn: "Answer the questions.",
+    exampleZh: "回答这些问题。",
+  },
+  "you will learn to": {
+    translation: "你将学会……",
+    childExplanation: "这里列出这一单元完成后你能学会的英语本领。",
+    keyPoints: ["先看看学习目标", "学完后回来检查"],
+    exampleEn: "You will learn to introduce yourself.",
+    exampleZh: "你将学会介绍自己。",
+  },
+};
+
 function localHelp(text: string): PageHelp | null {
   const key = normalize(text);
   if (!key) return null;
+  if (textbookLabels[key]) return textbookLabels[key];
   for (const unit of ple1aUnits) {
     for (const lesson of unit.lessons) {
       for (const sentence of lesson.sentences) {
