@@ -1,9 +1,15 @@
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 const root = process.cwd();
 const tsvDir = join(root, "tmp/pdfs/ple1a_tsv");
+const sparseTsvDir = join(root, "tmp/pdfs/ple1a_tsv_sparse");
+const enhancedSparseTsvDir = join(root, "tmp/pdfs/ple1a_tsv_enhanced_sparse");
+const visionJson = join(root, "tmp/pdfs/ple1a_vision.json");
 const output = join(root, "data/ple1aPageText.generated.json");
+const visionByPage = existsSync(visionJson)
+  ? new Map(JSON.parse(readFileSync(visionJson, "utf8")).map((entry) => [entry.page, entry.lines]))
+  : new Map();
 
 const tidy = (value) => value
   // 课本中的录音/练习图标会被 OCR 误识别成 re)、rw) 等短前缀。
@@ -34,9 +40,9 @@ function likelyEnglish(text, confidence) {
   return confidence >= 48;
 }
 
-function parsePage(file) {
-  const page = Number(basename(file).match(/\d+/)?.[0]);
-  const rows = readFileSync(join(tsvDir, file), "utf8").split(/\r?\n/).slice(1);
+function parseLines(directory, file, source, scale = 1) {
+  if (!existsSync(join(directory, file))) return [];
+  const rows = readFileSync(join(directory, file), "utf8").split(/\r?\n/).slice(1);
   const groups = new Map();
 
   for (const row of rows) {
@@ -56,19 +62,108 @@ function parsePage(file) {
     groups.set(key, entry);
   }
 
-  const lines = [...groups.values()].map((entry, index) => {
+  return [...groups.values()].map((entry) => {
     const text = tidy(entry.words.join(" "));
     const confidence = Math.round(entry.scores.reduce((sum, item) => sum + item, 0) / entry.scores.length);
     return {
-      id: `p${page}-l${index + 1}`,
       text,
-      x: Number((entry.left / 1440 * 100).toFixed(3)),
-      y: Number((entry.top / 1800 * 100).toFixed(3)),
-      width: Number(((entry.right - entry.left) / 1440 * 100).toFixed(3)),
-      height: Number(((entry.bottom - entry.top) / 1800 * 100).toFixed(3)),
+      left: entry.left / scale,
+      top: entry.top / scale,
+      right: entry.right / scale,
+      bottom: entry.bottom / scale,
       confidence,
+      source,
     };
   }).filter((entry) => likelyEnglish(entry.text, entry.confidence));
+}
+
+const normalized = (text) => text.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function overlapRatio(a, b) {
+  const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+  const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  const intersection = width * height;
+  const smallest = Math.min((a.right - a.left) * (a.bottom - a.top), (b.right - b.left) * (b.bottom - b.top));
+  return smallest > 0 ? intersection / smallest : 0;
+}
+
+function similarLine(a, b) {
+  const first = normalized(a.text); const second = normalized(b.text);
+  if (!first || !second) return false;
+  const firstWords = new Set(first.split(/\s+/)); const secondWords = new Set(second.split(/\s+/));
+  const sharedWords = [...firstWords].filter((word) => secondWords.has(word)).length;
+  const tokenContainment = sharedWords / Math.max(1, Math.min(firstWords.size, secondWords.size));
+  const sameText = first === second || tokenContainment >= 0.6 || (Math.min(first.length, second.length) >= 10 && (first.includes(second) || second.includes(first)));
+  const closeCenters = Math.abs((a.left + a.right - b.left - b.right) / 2) < 140 && Math.abs((a.top + a.bottom - b.top - b.bottom) / 2) < 48;
+  return sameText && (overlapRatio(a, b) >= 0.35 || closeCenters);
+}
+
+function joinWrappedLines(lines) {
+  const sorted = [...lines].sort((a, b) => a.top - b.top || a.left - b.left);
+  const joined = [];
+  for (const line of sorted) {
+    const previous = joined.at(-1);
+    if (previous) {
+      const gap = line.top - previous.bottom;
+      const horizontalOverlap = Math.max(0, Math.min(previous.right, line.right) - Math.max(previous.left, line.left));
+      const overlapShare = horizontalOverlap / Math.max(1, Math.min(previous.right - previous.left, line.right - line.left));
+      const continuesSentence = normalized(previous.text).split(/\s+/).length >= 3 && !/[.!?]["']?$/.test(previous.text) && /^[a-z]/.test(line.text);
+      if (continuesSentence && gap >= -5 && gap <= 28 && overlapShare >= 0.45) {
+        previous.text = tidy(`${previous.text} ${line.text}`);
+        previous.left = Math.min(previous.left, line.left); previous.top = Math.min(previous.top, line.top);
+        previous.right = Math.max(previous.right, line.right); previous.bottom = Math.max(previous.bottom, line.bottom);
+        previous.confidence = Math.round((previous.confidence + line.confidence) / 2);
+        continue;
+      }
+    }
+    joined.push({ ...line });
+  }
+  return joined;
+}
+
+function mergeLines(...sets) {
+  const merged = [];
+  for (const candidate of sets.flat()) {
+    const duplicateIndex = merged.findIndex((line) => similarLine(line, candidate) || overlapRatio(line, candidate) >= 0.72);
+    if (duplicateIndex < 0) { merged.push(candidate); continue; }
+    const current = merged[duplicateIndex];
+    if (current.source === "vision" && candidate.source !== "vision") continue;
+    if (candidate.source === "vision" && current.source !== "vision") { merged[duplicateIndex] = candidate; continue; }
+    const currentText = normalized(current.text); const candidateText = normalized(candidate.text);
+    if (candidateText.length > currentText.length || (candidateText.length === currentText.length && candidate.confidence > current.confidence)) merged[duplicateIndex] = candidate;
+  }
+  return merged.sort((a, b) => a.top - b.top || a.left - b.left);
+}
+
+function parseVisionLines(page) {
+  return (visionByPage.get(page) ?? []).map((entry) => ({
+    text: tidy(entry.text),
+    left: entry.x / 100 * 1440,
+    top: entry.y / 100 * 1800,
+    right: (entry.x + entry.width) / 100 * 1440,
+    bottom: (entry.y + entry.height) / 100 * 1800,
+    confidence: entry.confidence,
+    source: "vision",
+  })).filter((entry) => likelyEnglish(entry.text, entry.confidence));
+}
+
+function parsePage(file) {
+  const page = Number(basename(file).match(/\d+/)?.[0]);
+  const dense = parseLines(tsvDir, file, "dense");
+  const sparse = parseLines(sparseTsvDir, file, "sparse");
+  const enhancedSparse = parseLines(enhancedSparseTsvDir, file, "enhanced-sparse", 2);
+  const vision = joinWrappedLines(parseVisionLines(page));
+  // Vision 对气泡和细字体最准确；Tesseract 只补充没有重叠的多词短语，避免人物插画里的杂点变成可点击词。
+  const fallback = [...dense, ...sparse, ...enhancedSparse].filter((entry) => normalized(entry.text).split(/\s+/).length >= 2);
+  const lines = mergeLines(vision, fallback).map((entry, index) => ({
+    id: `p${page}-l${index + 1}`,
+    text: entry.text,
+    x: Number((entry.left / 1440 * 100).toFixed(3)),
+    y: Number((entry.top / 1800 * 100).toFixed(3)),
+    width: Number(((entry.right - entry.left) / 1440 * 100).toFixed(3)),
+    height: Number(((entry.bottom - entry.top) / 1800 * 100).toFixed(3)),
+    confidence: entry.confidence,
+  }));
 
   return {
     page,
