@@ -28,6 +28,6 @@ test("漫画对话页包含完整关键对白", () => {
 });
 
 test("已知录音图标 OCR 残字不会进入点读文本", () => {
-  const artifacts = lines.filter((line) => /^(?:re|rw)\)|^(?:oo|we)\s+Read\b|^ia\)|^cy\s+We\b/i.test(line.text));
+  const artifacts = lines.filter((line) => /^(?:re|rw)\)|^(?:oo|we)\s+Read\b|^ia\)|^cy\s+We\b|^od\s+[A-Z]\s+Listen\b/i.test(line.text));
   assert.deepEqual(artifacts, []);
 });

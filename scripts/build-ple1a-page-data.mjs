@@ -20,6 +20,8 @@ const tidy = (value) => value
   .replace(/^\s*cy\s+(?=We\s+can\b)/i, "")
   .replace(/^\s*[¢*}]\s*/, "")
   .replace(/^\s*(?:oe|[|>]+)\s+(?=[A-Za-z])/i, "")
+  // 黄色耳机图标在个别听力标题前会被识别成 "od"。
+  .replace(/^\s*od\s+(?=[A-Z]\s+Listen\b)/, "")
   .replace(/^\s*[a-z]\s+(?=[A-Z])/g, "")
   .replace(/^\s*\|(?=am\b)/i, "I ")
   .replace(/[|l]\s+am\b/g, "I am")

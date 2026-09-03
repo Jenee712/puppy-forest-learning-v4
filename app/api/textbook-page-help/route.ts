@@ -13,6 +13,13 @@ type PageHelp = {
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 const textbookLabels: Record<string, PageHelp> = {
+  "a listen and write the numbers 1 3 in the correct boxes": {
+    translation: "A　听录音，在正确的方框里写上数字1至3。",
+    childExplanation: "先听录音里的内容，再判断每段录音对应哪一幅图片，最后把数字写进图片旁边的方框。",
+    keyPoints: ["第一遍先听懂大意", "第二遍核对人物和生日蜡烛上的数字"],
+    exampleEn: "Listen and write the correct number.",
+    exampleZh: "听录音并写出正确的数字。",
+  },
   "structure table": {
     translation: "句型结构表",
     childExplanation: "这里把句子的组成方式整理成表格，帮助你看清每个词应该放在哪里。",
