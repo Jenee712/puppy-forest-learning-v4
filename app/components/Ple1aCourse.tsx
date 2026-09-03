@@ -108,8 +108,8 @@ function LessonContent({ lesson, completed, onComplete, onOpenPage }: { lesson: 
 
       <section className="ple-ai-expand" aria-live="polite">
         <header><div><span>🦉</span><div><small>AI Extension · AI拓展 · 只围绕本课教材</small><h3>{englishExpansion.title}</h3><p>{expansion.title}</p></div></div><button onClick={() => void refreshExpansion()} disabled={loading} type="button">{loading ? "老师正在准备…" : "换一组拓展 ✨"}</button></header>
-        <div className="ple-ai-points">{expansion.knowledge.map((item, index) => <article key={`${index}-${item}`}><span>{index + 1}</span><strong>{englishExpansion.knowledge[index] ?? englishExpansion.knowledge[0]}</strong><p>{item}</p></article>)}</div>
-        <div className="ple-ai-challenge"><strong>🌟 Challenge · 想一想</strong><b>{englishExpansion.challenge}</b><p>{expansion.challenge}</p><TtsButton text={englishExpansion.challenge} segment="sentence" label="听挑战" language="en" playbackRate={0.85} /></div>
+      <div className="ple-ai-points">{expansion.knowledge.map((item, index) => <article key={`${index}-${item}`}><span>{index + 1}</span><strong>{englishExpansion.knowledge[index] ?? englishExpansion.knowledge[0]}</strong><p>{item}</p></article>)}</div>
+      <div className="ple-ai-challenge"><strong>🌟 Challenge · 复习小挑战</strong><b>{englishExpansion.challenge}</b><p>{expansion.challenge}</p><TtsButton text={englishExpansion.challenge} segment="sentence" label="听挑战" language="en" playbackRate={0.85} /></div>
         {notice && <small className="ple-ai-notice">{notice}</small>}
       </section>
 
@@ -129,7 +129,7 @@ export default function Ple1aCourse({ onBack, onReward }: { onBack: () => void; 
   const unit = useMemo(() => ple1aUnits.find((item) => item.id === unitId) ?? ple1aUnits[0], [unitId]);
   const lesson = useMemo(() => unit.lessons.find((item) => item.id === lessonId) ?? unit.lessons[0], [lessonId, unit]);
   const progress = Math.round(completedIds.length / ple1aLessonCount * 100);
-  const currentBookPage = Number(lesson.pages.match(/\d+/)?.[0] ?? 1);
+  const currentBookPage = Number(lesson.pages.match(/\d+/)?.[0] ?? 2);
 
   const selectUnit = (nextUnitId: string) => {
     const nextUnit = ple1aUnits.find((item) => item.id === nextUnitId) ?? ple1aUnits[0];
@@ -160,7 +160,7 @@ export default function Ple1aCourse({ onBack, onReward }: { onBack: () => void; 
 
       <div className="ple-course-layout">
         <aside className="ple-lesson-menu"><header><small>{unit.number <= 6 ? `Unit ${unit.number}` : "Review"}</small><h2>{unit.title}</h2><strong>{unit.zh}</strong><p>{unit.theme}</p></header>{unit.lessons.map((item, index) => <button className={lesson.id === item.id ? "active" : ""} key={item.id} onClick={() => setLessonId(item.id)} type="button"><span>{completedIds.includes(item.id) ? "✅" : item.icon}</span><div><small>Lesson {index + 1} · 第{index + 1}课 · {item.kind}</small><strong>{item.title}</strong><i>{item.subtitle}</i><em>{item.pages}</em></div></button>)}</aside>
-        <LessonContent lesson={lesson} completed={completedIds.includes(lesson.id)} onComplete={completeLesson} onOpenPage={() => setReaderPage(Math.min(98, currentBookPage + 8))} />
+        <LessonContent lesson={lesson} completed={completedIds.includes(lesson.id)} onComplete={completeLesson} onOpenPage={() => setReaderPage(Math.min(98, currentBookPage + 7))} />
       </div>
     </section>
   );

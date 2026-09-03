@@ -173,11 +173,11 @@ export async function POST(request: Request) {
     if (fallback) return Response.json({ help: fallback, fallback: true });
     return Response.json({
       help: {
-        translation: "这段原文尚未完成中文校对。可以先点击发音，结合课本图片理解。",
-        childExplanation: "先听关键词，再看看人物、动作和场景。老师稍后会补充准确翻译。",
+        translation: "请结合课本图片理解这段英文。",
+        childExplanation: "先听一遍英文，再从图片中找一找人物、动作或物品。",
         keyPoints: ["先找人物或物品", "再找动作词", "最后看句末标点判断语气"],
         exampleEn: text,
-        exampleZh: "待校对",
+        exampleZh: "",
       } satisfies PageHelp,
       fallback: true,
       needsReview: true,

@@ -20,6 +20,24 @@ function parseJson(text: string) {
   return JSON.parse(cleaned) as unknown;
 }
 
+function childStudyFallback(found: NonNullable<ReturnType<typeof findPle1aLesson>>, pageContext: string): PleExpansion {
+  const normalizedContext = pageContext.toLowerCase().replace(/[^a-z0-9]+/g, " ");
+  const ranked = [...found.lesson.sentences].sort((a, b) => {
+    const score = (sentence: string) => normalizedContext.includes(sentence.toLowerCase().replace(/[^a-z0-9]+/g, " ")) ? 1 : 0;
+    return score(b.en) - score(a.en);
+  });
+  const sentences = ranked.slice(0, 3);
+  const focusWord = found.lesson.vocabulary[0];
+  return {
+    titleEn: "Listen, read and say",
+    title: "先听、再读、自己说",
+    knowledgeEn: sentences.map((sentence) => sentence.en),
+    knowledge: sentences.map((sentence) => sentence.zh),
+    challengeEn: focusWord ? `Can you use "${focusWord.word}" in a new sentence?` : "Can you say one sentence from this page by yourself?",
+    challenge: focusWord ? `你能用“${focusWord.word}”自己说一个新句子吗？` : "你能不看提示，自己说出本页的一句话吗？",
+  };
+}
+
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > 5_000) return Response.json({ error: "请求内容过大" }, { status: 413 });
@@ -30,10 +48,10 @@ export async function POST(request: Request) {
   const lessonId = typeof data.lessonId === "string" ? data.lessonId : "";
   const pdfPage = typeof data.page === "number" ? Math.max(1, Math.min(98, Math.round(data.page))) : null;
   const pageContext = typeof data.context === "string" ? data.context.trim().slice(0, 1_600) : "";
-  const found = lessonId ? findPle1aLesson(lessonId) : pdfPage ? findPle1aLessonByBookPage(pdfPage - 8) : null;
+  const found = lessonId ? findPle1aLesson(lessonId) : pdfPage ? findPle1aLessonByBookPage(pdfPage - 7) : null;
   if (!found) return Response.json({ error: "没有找到这个教材课时" }, { status: 404 });
 
-  const fallback = found.lesson.expansion;
+  const fallback = childStudyFallback(found, pageContext);
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return Response.json({ expansion: fallback, fallback: true });
 
@@ -46,7 +64,7 @@ export async function POST(request: Request) {
     vocabulary: found.lesson.vocabulary,
     sentences: found.lesson.sentences,
     knowledge: found.lesson.knowledge,
-    page: pdfPage ? `PDF第${pdfPage}页／课本第${pdfPage - 8}页` : found.lesson.pages,
+    page: pdfPage ? `PDF第${pdfPage}页／课本第${pdfPage - 7}页` : found.lesson.pages,
     pageText: pageContext,
   };
 
@@ -61,8 +79,8 @@ export async function POST(request: Request) {
         max_tokens: 700,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "你是香港小学一年级英语老师。只依据给定教材课时做安全、准确的中英双语知识拓展。英文要短、自然、适合6至7岁儿童；中文只用简体字。语气亲切；不涉及政治、医疗、成人内容、消费品牌，不编造课本事实。只输出JSON，不要Markdown。JSON结构必须是：{\"titleEn\":\"English title\",\"title\":\"中文短标题\",\"knowledgeEn\":[\"English point 1\",\"English point 2\",\"English point 3\"],\"knowledge\":[\"中文知识1\",\"中文知识2\",\"中文知识3\"],\"challengeEn\":\"English challenge\",\"challenge\":\"中文挑战\"}。knowledgeEn与knowledge必须逐项对应。" },
-          { role: "user", content: `请优先围绕当前这一页的内容生成一组不同于原有知识点、但难度适中的拓展；不要讲到本页未出现的生词：${JSON.stringify(lessonSummary)}` },
+          { role: "system", content: "你是陪香港小学一年级孩子预习和复习英语的亲切老师。只依据当前教材页生成孩子可以直接听、跟读、理解和回答的中英双语练习，不写备课建议，不对家长或教师说话，不使用‘教学目标、建议教师、引导学生’等措辞。英文要短、自然、适合6至7岁儿童；中文使用简体字。不得编造教材内容。只输出JSON，不要Markdown。JSON结构必须是：{\"titleEn\":\"给孩子看的英文短标题\",\"title\":\"对应中文标题\",\"knowledgeEn\":[\"本页重点英文句1\",\"本页重点英文句2\",\"本页重点英文句3\"],\"knowledge\":[\"句1的准确中文和简短提示\",\"句2的准确中文和简短提示\",\"句3的准确中文和简短提示\"],\"challengeEn\":\"孩子能直接回答或模仿的英文问题\",\"challenge\":\"对应中文问题\"}。knowledgeEn与knowledge必须逐项对应。" },
+          { role: "user", content: `请把这一页整理成“预习—跟读—理解—复习小测”，优先使用本页出现的词句，不讲本页未出现的难词：${JSON.stringify(lessonSummary)}` },
         ],
       }),
     });

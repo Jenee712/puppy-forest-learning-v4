@@ -172,7 +172,7 @@ function parsePage(file) {
 
   return {
     page,
-    bookPage: page >= 9 ? page - 8 : null,
+    bookPage: page >= 9 ? page - 7 : null,
     image: `/textbooks/ple1a/pages/page-${String(page).padStart(2, "0")}.jpg`,
     lines,
   };

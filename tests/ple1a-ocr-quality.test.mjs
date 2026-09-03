@@ -7,6 +7,9 @@ const lines = pages.flatMap((page) => page.lines.map((line) => ({ page: page.pag
 
 test("PLE 1A 点读数据覆盖全部教材页且坐标有效", () => {
   assert.equal(pages.length, 98);
+  assert.equal(pages.find((page) => page.page === 9)?.bookPage, 2);
+  assert.equal(pages.find((page) => page.page === 17)?.bookPage, 10);
+  assert.equal(pages.find((page) => page.page === 34)?.bookPage, 27);
   assert.ok(lines.length >= 1800);
   for (const line of lines) {
     assert.ok(line.x >= 0 && line.y >= 0 && line.width > 0 && line.height > 0);

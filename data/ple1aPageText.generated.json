@@ -1334,7 +1334,7 @@
   },
   {
     "page": 9,
-    "bookPage": 1,
+    "bookPage": 2,
     "image": "/textbooks/ple1a/pages/page-09.jpg",
     "lines": [
       {
@@ -1404,7 +1404,7 @@
   },
   {
     "page": 10,
-    "bookPage": 2,
+    "bookPage": 3,
     "image": "/textbooks/ple1a/pages/page-10.jpg",
     "lines": [
       {
@@ -1474,7 +1474,7 @@
   },
   {
     "page": 11,
-    "bookPage": 3,
+    "bookPage": 4,
     "image": "/textbooks/ple1a/pages/page-11.jpg",
     "lines": [
       {
@@ -1634,7 +1634,7 @@
   },
   {
     "page": 12,
-    "bookPage": 4,
+    "bookPage": 5,
     "image": "/textbooks/ple1a/pages/page-12.jpg",
     "lines": [
       {
@@ -1758,7 +1758,7 @@
   },
   {
     "page": 13,
-    "bookPage": 5,
+    "bookPage": 6,
     "image": "/textbooks/ple1a/pages/page-13.jpg",
     "lines": [
       {
@@ -1954,7 +1954,7 @@
   },
   {
     "page": 14,
-    "bookPage": 6,
+    "bookPage": 7,
     "image": "/textbooks/ple1a/pages/page-14.jpg",
     "lines": [
       {
@@ -2141,7 +2141,7 @@
   },
   {
     "page": 15,
-    "bookPage": 7,
+    "bookPage": 8,
     "image": "/textbooks/ple1a/pages/page-15.jpg",
     "lines": [
       {
@@ -2328,7 +2328,7 @@
   },
   {
     "page": 16,
-    "bookPage": 8,
+    "bookPage": 9,
     "image": "/textbooks/ple1a/pages/page-16.jpg",
     "lines": [
       {
@@ -2497,7 +2497,7 @@
   },
   {
     "page": 17,
-    "bookPage": 9,
+    "bookPage": 10,
     "image": "/textbooks/ple1a/pages/page-17.jpg",
     "lines": [
       {
@@ -2603,7 +2603,7 @@
   },
   {
     "page": 18,
-    "bookPage": 10,
+    "bookPage": 11,
     "image": "/textbooks/ple1a/pages/page-18.jpg",
     "lines": [
       {
@@ -2781,7 +2781,7 @@
   },
   {
     "page": 19,
-    "bookPage": 11,
+    "bookPage": 12,
     "image": "/textbooks/ple1a/pages/page-19.jpg",
     "lines": [
       {
@@ -3049,7 +3049,7 @@
   },
   {
     "page": 20,
-    "bookPage": 12,
+    "bookPage": 13,
     "image": "/textbooks/ple1a/pages/page-20.jpg",
     "lines": [
       {
@@ -3173,7 +3173,7 @@
   },
   {
     "page": 21,
-    "bookPage": 13,
+    "bookPage": 14,
     "image": "/textbooks/ple1a/pages/page-21.jpg",
     "lines": [
       {
@@ -3279,7 +3279,7 @@
   },
   {
     "page": 22,
-    "bookPage": 14,
+    "bookPage": 15,
     "image": "/textbooks/ple1a/pages/page-22.jpg",
     "lines": [
       {
@@ -3367,7 +3367,7 @@
   },
   {
     "page": 23,
-    "bookPage": 15,
+    "bookPage": 16,
     "image": "/textbooks/ple1a/pages/page-23.jpg",
     "lines": [
       {
@@ -3473,7 +3473,7 @@
   },
   {
     "page": 24,
-    "bookPage": 16,
+    "bookPage": 17,
     "image": "/textbooks/ple1a/pages/page-24.jpg",
     "lines": [
       {
@@ -3615,7 +3615,7 @@
   },
   {
     "page": 25,
-    "bookPage": 17,
+    "bookPage": 18,
     "image": "/textbooks/ple1a/pages/page-25.jpg",
     "lines": [
       {
@@ -3865,7 +3865,7 @@
   },
   {
     "page": 26,
-    "bookPage": 18,
+    "bookPage": 19,
     "image": "/textbooks/ple1a/pages/page-26.jpg",
     "lines": [
       {
@@ -4088,7 +4088,7 @@
   },
   {
     "page": 27,
-    "bookPage": 19,
+    "bookPage": 20,
     "image": "/textbooks/ple1a/pages/page-27.jpg",
     "lines": [
       {
@@ -4248,7 +4248,7 @@
   },
   {
     "page": 28,
-    "bookPage": 20,
+    "bookPage": 21,
     "image": "/textbooks/ple1a/pages/page-28.jpg",
     "lines": [
       {
@@ -4390,7 +4390,7 @@
   },
   {
     "page": 29,
-    "bookPage": 21,
+    "bookPage": 22,
     "image": "/textbooks/ple1a/pages/page-29.jpg",
     "lines": [
       {
@@ -4478,7 +4478,7 @@
   },
   {
     "page": 30,
-    "bookPage": 22,
+    "bookPage": 23,
     "image": "/textbooks/ple1a/pages/page-30.jpg",
     "lines": [
       {
@@ -4611,7 +4611,7 @@
   },
   {
     "page": 31,
-    "bookPage": 23,
+    "bookPage": 24,
     "image": "/textbooks/ple1a/pages/page-31.jpg",
     "lines": [
       {
@@ -4762,7 +4762,7 @@
   },
   {
     "page": 32,
-    "bookPage": 24,
+    "bookPage": 25,
     "image": "/textbooks/ple1a/pages/page-32.jpg",
     "lines": [
       {
@@ -4895,7 +4895,7 @@
   },
   {
     "page": 33,
-    "bookPage": 25,
+    "bookPage": 26,
     "image": "/textbooks/ple1a/pages/page-33.jpg",
     "lines": [
       {
@@ -4992,7 +4992,7 @@
   },
   {
     "page": 34,
-    "bookPage": 26,
+    "bookPage": 27,
     "image": "/textbooks/ple1a/pages/page-34.jpg",
     "lines": [
       {
@@ -5053,7 +5053,7 @@
   },
   {
     "page": 35,
-    "bookPage": 27,
+    "bookPage": 28,
     "image": "/textbooks/ple1a/pages/page-35.jpg",
     "lines": [
       {
@@ -5204,7 +5204,7 @@
   },
   {
     "page": 36,
-    "bookPage": 28,
+    "bookPage": 29,
     "image": "/textbooks/ple1a/pages/page-36.jpg",
     "lines": [
       {
@@ -5346,7 +5346,7 @@
   },
   {
     "page": 37,
-    "bookPage": 29,
+    "bookPage": 30,
     "image": "/textbooks/ple1a/pages/page-37.jpg",
     "lines": [
       {
@@ -5641,7 +5641,7 @@
   },
   {
     "page": 38,
-    "bookPage": 30,
+    "bookPage": 31,
     "image": "/textbooks/ple1a/pages/page-38.jpg",
     "lines": [
       {
@@ -5909,7 +5909,7 @@
   },
   {
     "page": 39,
-    "bookPage": 31,
+    "bookPage": 32,
     "image": "/textbooks/ple1a/pages/page-39.jpg",
     "lines": [
       {
@@ -6042,7 +6042,7 @@
   },
   {
     "page": 40,
-    "bookPage": 32,
+    "bookPage": 33,
     "image": "/textbooks/ple1a/pages/page-40.jpg",
     "lines": [
       {
@@ -6157,7 +6157,7 @@
   },
   {
     "page": 41,
-    "bookPage": 33,
+    "bookPage": 34,
     "image": "/textbooks/ple1a/pages/page-41.jpg",
     "lines": [
       {
@@ -6371,7 +6371,7 @@
   },
   {
     "page": 42,
-    "bookPage": 34,
+    "bookPage": 35,
     "image": "/textbooks/ple1a/pages/page-42.jpg",
     "lines": [
       {
@@ -6441,7 +6441,7 @@
   },
   {
     "page": 43,
-    "bookPage": 35,
+    "bookPage": 36,
     "image": "/textbooks/ple1a/pages/page-43.jpg",
     "lines": [
       {
@@ -6538,7 +6538,7 @@
   },
   {
     "page": 44,
-    "bookPage": 36,
+    "bookPage": 37,
     "image": "/textbooks/ple1a/pages/page-44.jpg",
     "lines": [
       {
@@ -6653,7 +6653,7 @@
   },
   {
     "page": 45,
-    "bookPage": 37,
+    "bookPage": 38,
     "image": "/textbooks/ple1a/pages/page-45.jpg",
     "lines": [
       {
@@ -6741,7 +6741,7 @@
   },
   {
     "page": 46,
-    "bookPage": 38,
+    "bookPage": 39,
     "image": "/textbooks/ple1a/pages/page-46.jpg",
     "lines": [
       {
@@ -6802,7 +6802,7 @@
   },
   {
     "page": 47,
-    "bookPage": 39,
+    "bookPage": 40,
     "image": "/textbooks/ple1a/pages/page-47.jpg",
     "lines": [
       {
@@ -6953,7 +6953,7 @@
   },
   {
     "page": 48,
-    "bookPage": 40,
+    "bookPage": 41,
     "image": "/textbooks/ple1a/pages/page-48.jpg",
     "lines": [
       {
@@ -7122,7 +7122,7 @@
   },
   {
     "page": 49,
-    "bookPage": 41,
+    "bookPage": 42,
     "image": "/textbooks/ple1a/pages/page-49.jpg",
     "lines": [
       {
@@ -7390,7 +7390,7 @@
   },
   {
     "page": 50,
-    "bookPage": 42,
+    "bookPage": 43,
     "image": "/textbooks/ple1a/pages/page-50.jpg",
     "lines": [
       {
@@ -7649,7 +7649,7 @@
   },
   {
     "page": 51,
-    "bookPage": 43,
+    "bookPage": 44,
     "image": "/textbooks/ple1a/pages/page-51.jpg",
     "lines": [
       {
@@ -7917,7 +7917,7 @@
   },
   {
     "page": 52,
-    "bookPage": 44,
+    "bookPage": 45,
     "image": "/textbooks/ple1a/pages/page-52.jpg",
     "lines": [
       {
@@ -7978,7 +7978,7 @@
   },
   {
     "page": 53,
-    "bookPage": 45,
+    "bookPage": 46,
     "image": "/textbooks/ple1a/pages/page-53.jpg",
     "lines": [
       {
@@ -8156,7 +8156,7 @@
   },
   {
     "page": 54,
-    "bookPage": 46,
+    "bookPage": 47,
     "image": "/textbooks/ple1a/pages/page-54.jpg",
     "lines": [
       {
@@ -8208,7 +8208,7 @@
   },
   {
     "page": 55,
-    "bookPage": 47,
+    "bookPage": 48,
     "image": "/textbooks/ple1a/pages/page-55.jpg",
     "lines": [
       {
@@ -8404,7 +8404,7 @@
   },
   {
     "page": 56,
-    "bookPage": 48,
+    "bookPage": 49,
     "image": "/textbooks/ple1a/pages/page-56.jpg",
     "lines": [
       {
@@ -8546,7 +8546,7 @@
   },
   {
     "page": 57,
-    "bookPage": 49,
+    "bookPage": 50,
     "image": "/textbooks/ple1a/pages/page-57.jpg",
     "lines": [
       {
@@ -8643,7 +8643,7 @@
   },
   {
     "page": 58,
-    "bookPage": 50,
+    "bookPage": 51,
     "image": "/textbooks/ple1a/pages/page-58.jpg",
     "lines": [
       {
@@ -8704,7 +8704,7 @@
   },
   {
     "page": 59,
-    "bookPage": 51,
+    "bookPage": 52,
     "image": "/textbooks/ple1a/pages/page-59.jpg",
     "lines": [
       {
@@ -8882,7 +8882,7 @@
   },
   {
     "page": 60,
-    "bookPage": 52,
+    "bookPage": 53,
     "image": "/textbooks/ple1a/pages/page-60.jpg",
     "lines": [
       {
@@ -8979,7 +8979,7 @@
   },
   {
     "page": 61,
-    "bookPage": 53,
+    "bookPage": 54,
     "image": "/textbooks/ple1a/pages/page-61.jpg",
     "lines": [
       {
@@ -9265,7 +9265,7 @@
   },
   {
     "page": 62,
-    "bookPage": 54,
+    "bookPage": 55,
     "image": "/textbooks/ple1a/pages/page-62.jpg",
     "lines": [
       {
@@ -9506,7 +9506,7 @@
   },
   {
     "page": 63,
-    "bookPage": 55,
+    "bookPage": 56,
     "image": "/textbooks/ple1a/pages/page-63.jpg",
     "lines": [
       {
@@ -9720,7 +9720,7 @@
   },
   {
     "page": 64,
-    "bookPage": 56,
+    "bookPage": 57,
     "image": "/textbooks/ple1a/pages/page-64.jpg",
     "lines": [
       {
@@ -9763,7 +9763,7 @@
   },
   {
     "page": 65,
-    "bookPage": 57,
+    "bookPage": 58,
     "image": "/textbooks/ple1a/pages/page-65.jpg",
     "lines": [
       {
@@ -10058,7 +10058,7 @@
   },
   {
     "page": 66,
-    "bookPage": 58,
+    "bookPage": 59,
     "image": "/textbooks/ple1a/pages/page-66.jpg",
     "lines": [
       {
@@ -10200,7 +10200,7 @@
   },
   {
     "page": 67,
-    "bookPage": 59,
+    "bookPage": 60,
     "image": "/textbooks/ple1a/pages/page-67.jpg",
     "lines": [
       {
@@ -10378,7 +10378,7 @@
   },
   {
     "page": 68,
-    "bookPage": 60,
+    "bookPage": 61,
     "image": "/textbooks/ple1a/pages/page-68.jpg",
     "lines": [
       {
@@ -10493,7 +10493,7 @@
   },
   {
     "page": 69,
-    "bookPage": 61,
+    "bookPage": 62,
     "image": "/textbooks/ple1a/pages/page-69.jpg",
     "lines": [
       {
@@ -10590,7 +10590,7 @@
   },
   {
     "page": 70,
-    "bookPage": 62,
+    "bookPage": 63,
     "image": "/textbooks/ple1a/pages/page-70.jpg",
     "lines": [
       {
@@ -10660,7 +10660,7 @@
   },
   {
     "page": 71,
-    "bookPage": 63,
+    "bookPage": 64,
     "image": "/textbooks/ple1a/pages/page-71.jpg",
     "lines": [
       {
@@ -10847,7 +10847,7 @@
   },
   {
     "page": 72,
-    "bookPage": 64,
+    "bookPage": 65,
     "image": "/textbooks/ple1a/pages/page-72.jpg",
     "lines": [
       {
@@ -10953,7 +10953,7 @@
   },
   {
     "page": 73,
-    "bookPage": 65,
+    "bookPage": 66,
     "image": "/textbooks/ple1a/pages/page-73.jpg",
     "lines": [
       {
@@ -11185,7 +11185,7 @@
   },
   {
     "page": 74,
-    "bookPage": 66,
+    "bookPage": 67,
     "image": "/textbooks/ple1a/pages/page-74.jpg",
     "lines": [
       {
@@ -11498,7 +11498,7 @@
   },
   {
     "page": 75,
-    "bookPage": 67,
+    "bookPage": 68,
     "image": "/textbooks/ple1a/pages/page-75.jpg",
     "lines": [
       {
@@ -11829,7 +11829,7 @@
   },
   {
     "page": 76,
-    "bookPage": 68,
+    "bookPage": 69,
     "image": "/textbooks/ple1a/pages/page-76.jpg",
     "lines": [
       {
@@ -12007,7 +12007,7 @@
   },
   {
     "page": 77,
-    "bookPage": 69,
+    "bookPage": 70,
     "image": "/textbooks/ple1a/pages/page-77.jpg",
     "lines": [
       {
@@ -12230,7 +12230,7 @@
   },
   {
     "page": 78,
-    "bookPage": 70,
+    "bookPage": 71,
     "image": "/textbooks/ple1a/pages/page-78.jpg",
     "lines": [
       {
@@ -12273,7 +12273,7 @@
   },
   {
     "page": 79,
-    "bookPage": 71,
+    "bookPage": 72,
     "image": "/textbooks/ple1a/pages/page-79.jpg",
     "lines": [
       {
@@ -12496,7 +12496,7 @@
   },
   {
     "page": 80,
-    "bookPage": 72,
+    "bookPage": 73,
     "image": "/textbooks/ple1a/pages/page-80.jpg",
     "lines": [
       {
@@ -12638,7 +12638,7 @@
   },
   {
     "page": 81,
-    "bookPage": 73,
+    "bookPage": 74,
     "image": "/textbooks/ple1a/pages/page-81.jpg",
     "lines": [
       {
@@ -12870,7 +12870,7 @@
   },
   {
     "page": 82,
-    "bookPage": 74,
+    "bookPage": 75,
     "image": "/textbooks/ple1a/pages/page-82.jpg",
     "lines": [
       {
@@ -13120,7 +13120,7 @@
   },
   {
     "page": 83,
-    "bookPage": 75,
+    "bookPage": 76,
     "image": "/textbooks/ple1a/pages/page-83.jpg",
     "lines": [
       {
@@ -13307,7 +13307,7 @@
   },
   {
     "page": 84,
-    "bookPage": 76,
+    "bookPage": 77,
     "image": "/textbooks/ple1a/pages/page-84.jpg",
     "lines": [
       {
@@ -13422,7 +13422,7 @@
   },
   {
     "page": 85,
-    "bookPage": 77,
+    "bookPage": 78,
     "image": "/textbooks/ple1a/pages/page-85.jpg",
     "lines": [
       {
@@ -13537,7 +13537,7 @@
   },
   {
     "page": 86,
-    "bookPage": 78,
+    "bookPage": 79,
     "image": "/textbooks/ple1a/pages/page-86.jpg",
     "lines": [
       {
@@ -13697,13 +13697,13 @@
   },
   {
     "page": 87,
-    "bookPage": 79,
+    "bookPage": 80,
     "image": "/textbooks/ple1a/pages/page-87.jpg",
     "lines": []
   },
   {
     "page": 88,
-    "bookPage": 80,
+    "bookPage": 81,
     "image": "/textbooks/ple1a/pages/page-88.jpg",
     "lines": [
       {
@@ -14205,7 +14205,7 @@
   },
   {
     "page": 89,
-    "bookPage": 81,
+    "bookPage": 82,
     "image": "/textbooks/ple1a/pages/page-89.jpg",
     "lines": [
       {
@@ -14320,7 +14320,7 @@
   },
   {
     "page": 90,
-    "bookPage": 82,
+    "bookPage": 83,
     "image": "/textbooks/ple1a/pages/page-90.jpg",
     "lines": [
       {
@@ -14588,7 +14588,7 @@
   },
   {
     "page": 91,
-    "bookPage": 83,
+    "bookPage": 84,
     "image": "/textbooks/ple1a/pages/page-91.jpg",
     "lines": [
       {
@@ -15036,13 +15036,13 @@
   },
   {
     "page": 92,
-    "bookPage": 84,
+    "bookPage": 85,
     "image": "/textbooks/ple1a/pages/page-92.jpg",
     "lines": []
   },
   {
     "page": 93,
-    "bookPage": 85,
+    "bookPage": 86,
     "image": "/textbooks/ple1a/pages/page-93.jpg",
     "lines": [
       {
@@ -15193,7 +15193,7 @@
   },
   {
     "page": 94,
-    "bookPage": 86,
+    "bookPage": 87,
     "image": "/textbooks/ple1a/pages/page-94.jpg",
     "lines": [
       {
@@ -15245,7 +15245,7 @@
   },
   {
     "page": 95,
-    "bookPage": 87,
+    "bookPage": 88,
     "image": "/textbooks/ple1a/pages/page-95.jpg",
     "lines": [
       {
@@ -15891,7 +15891,7 @@
   },
   {
     "page": 96,
-    "bookPage": 88,
+    "bookPage": 89,
     "image": "/textbooks/ple1a/pages/page-96.jpg",
     "lines": [
       {
@@ -17257,7 +17257,7 @@
   },
   {
     "page": 97,
-    "bookPage": 89,
+    "bookPage": 90,
     "image": "/textbooks/ple1a/pages/page-97.jpg",
     "lines": [
       {
@@ -17930,7 +17930,7 @@
   },
   {
     "page": 98,
-    "bookPage": 90,
+    "bookPage": 91,
     "image": "/textbooks/ple1a/pages/page-98.jpg",
     "lines": []
   }
