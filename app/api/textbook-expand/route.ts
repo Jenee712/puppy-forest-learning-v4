@@ -86,12 +86,8 @@ export async function POST(request: Request) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   const lessonSummary = {
-    unit: `${found.unit.title}（${found.unit.zh}）`,
-    lesson: found.lesson.title,
-    goals: found.lesson.goals,
+    learner: "香港小学一年级英语",
     vocabulary: found.lesson.vocabulary,
-    sentences: found.lesson.sentences,
-    knowledge: found.lesson.knowledge,
     page: pdfPage ? `PDF第${pdfPage}页／课本第${pdfPage - 7}页` : found.lesson.pages,
     pageText: pageContext,
   };
@@ -107,8 +103,8 @@ export async function POST(request: Request) {
         max_tokens: 700,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "你是陪香港小学一年级孩子预习和复习英语的亲切老师。只依据当前教材页生成孩子可以直接听、跟读、理解和回答的中英双语练习，不写备课建议，不对家长或教师说话，不使用‘教学目标、建议教师、引导学生’等措辞。英文要短、自然、适合6至7岁儿童；中文使用简体字。不得编造教材内容。只输出JSON，不要Markdown。JSON结构必须是：{\"titleEn\":\"给孩子看的英文短标题\",\"title\":\"对应中文标题\",\"knowledgeEn\":[\"本页重点英文句1\",\"本页重点英文句2\",\"本页重点英文句3\"],\"knowledge\":[\"句1的准确中文\",\"句2的准确中文\",\"句3的准确中文\"],\"focus\":[[{\"term\":\"句1重点词或词组\",\"meaning\":\"中文意思\"}],[{\"term\":\"句2重点词或词组\",\"meaning\":\"中文意思\"}],[{\"term\":\"句3重点词或词组\",\"meaning\":\"中文意思\"}]],\"challengeEn\":\"孩子能直接回答或模仿的英文问题\",\"challenge\":\"对应中文问题\"}。三组knowledgeEn、knowledge、focus必须逐项对应；每句提取1至3个真正出现在句中的重点词或词组。" },
-          { role: "user", content: `请把这一页整理成“预习—跟读—理解—复习小测”，优先使用本页出现的词句，不讲本页未出现的难词：${JSON.stringify(lessonSummary)}` },
+          { role: "system", content: "你是陪香港小学一年级孩子预习和复习英语的亲切老师。只依据当前教材页生成孩子可以直接听、跟读、理解和回答的中英双语练习，不写备课建议，不对家长或教师说话，不使用‘教学目标、建议教师、引导学生’等措辞。英文要短、自然、适合6至7岁儿童；中文使用简体字。不得编造教材内容。knowledgeEn的三句必须直接选自pageText，只可修正OCR拼写、标点或补全明显缺失的句号，禁止从同一课的其他页面取句。优先选择完整对话、问题、任务句和有学习价值的标题；忽略Ch 1、Your Task、You will learn to...等残缺栏目标签。若当前页不足三句完整对话，可以使用本页的完整标题或练习指令。标题也必须概括当前pageText，不可猜测其他页故事。只输出JSON，不要Markdown。JSON结构必须是：{\"titleEn\":\"概括当前页的英文短标题\",\"title\":\"对应中文标题\",\"knowledgeEn\":[\"本页原句1\",\"本页原句2\",\"本页原句3\"],\"knowledge\":[\"句1的准确中文\",\"句2的准确中文\",\"句3的准确中文\"],\"focus\":[[{\"term\":\"句1重点词或词组\",\"meaning\":\"中文意思\"}],[{\"term\":\"句2重点词或词组\",\"meaning\":\"中文意思\"}],[{\"term\":\"句3重点词或词组\",\"meaning\":\"中文意思\"}]],\"challengeEn\":\"只围绕当前页、孩子能直接回答或模仿的英文问题\",\"challenge\":\"对应中文问题\"}。三组knowledgeEn、knowledge、focus必须逐项对应；每句提取1至3个真正出现在句中的重点词或词组。" },
+          { role: "user", content: `请严格只用pageText里的内容，把这一页整理成“预习—跟读—理解—复习小测”：${JSON.stringify(lessonSummary)}` },
         ],
       }),
     });
