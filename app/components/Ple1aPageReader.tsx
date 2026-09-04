@@ -36,7 +36,7 @@ export default function Ple1aPageReader({ initialPage = 9, onBack }: { initialPa
   const [expansionLoading, setExpansionLoading] = useState(false);
   const [expansionNotice, setExpansionNotice] = useState("");
   const page = pages[pageNumber - 1] ?? pages[0];
-  const context = useMemo(() => page.lines.map((item) => item.text).join(" ").slice(0, 1_200), [page]);
+  const context = useMemo(() => page.lines.map((item) => item.text).join("\n").slice(0, 1_600), [page]);
   const pageLesson = useMemo(() => page.bookPage === null ? null : findPle1aLessonByBookPage(page.bookPage), [page.bookPage]);
   const englishExpansion = pageExpansion && pageLesson ? expansionEnglish(pageExpansion, pageLesson.lesson.title) : null;
 
@@ -59,7 +59,7 @@ export default function Ple1aPageReader({ initialPage = 9, onBack }: { initialPa
       const result = await response.json() as { expansion?: PleExpansion; fallback?: boolean; error?: string };
       if (!response.ok || !result.expansion) throw new Error(result.error ?? "AI拓展暂时不可用");
       setPageExpansion(result.expansion);
-      setExpansionNotice(result.fallback ? "已打开本课精选的预习与复习练习" : "DeepSeek已结合本页内容生成新的预习与复习练习");
+      setExpansionNotice(result.fallback ? "已根据当前教材页打开预习与复习练习" : "DeepSeek已结合本页内容生成新的预习与复习练习");
     } catch (error) {
       setExpansionNotice(error instanceof Error ? error.message : "AI拓展暂时不可用");
     } finally {
@@ -126,7 +126,7 @@ export default function Ple1aPageReader({ initialPage = 9, onBack }: { initialPa
               {translationPending ? <section className="ple-reader-picture-tip"><small>看图理解</small><strong>先听英文，再从图片里找线索</strong><p>看看这句话说的是谁、什么物品或哪个动作。</p></section> : <section><small>中文翻译</small><strong>{help.translation}</strong><TtsButton text={help.translation} segment="sentence" label="听中文" language="zh" /></section>}
               <section><small>老师这样讲</small><p>{help.childExplanation}</p></section>
               <section><small>知识拓展</small><ul>{help.keyPoints.map((item) => <li key={item}>{item}</li>)}</ul></section>
-              <section className="ple-reader-example"><small>再学一句</small><strong>{help.exampleEn}</strong><p>{help.exampleZh}</p><TtsButton text={help.exampleEn} segment="sentence" label="听例句" language="en" playbackRate={0.85} /></section>
+              <section className="ple-reader-example"><small>再学一句</small><strong>{help.exampleEn}</strong><p>{help.exampleZh}</p><footer><TtsButton text={help.exampleEn} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={help.exampleZh} segment="sentence" label="听中文" language="zh" /></footer></section>
             </div> : null}
             {notice && <p className="ple-reader-notice">{notice}</p>}
           </>}
@@ -140,7 +140,7 @@ export default function Ple1aPageReader({ initialPage = 9, onBack }: { initialPa
         </header>
         {!pageExpansion ? <div className="ple-page-ai-empty"><span>🔊</span><p>适合上课前预习和放学后复习：每句话都能听英文、听中文并跟读。</p></div> : englishExpansion && <div className="ple-page-ai-content">
           <div className="ple-page-ai-title"><div><small>第一步 · 听一听</small><strong>{englishExpansion.title}</strong><p>{pageExpansion.title}</p></div><div><TtsButton text={englishExpansion.title} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={pageExpansion.title} segment="sentence" label="听中文" language="zh" /></div></div>
-          <div className="ple-page-ai-points">{pageExpansion.knowledge.map((item, index) => { const english = englishExpansion.knowledge[index] ?? englishExpansion.knowledge[0]; return <article key={`${index}-${item}`}><span>{index + 1}</span><div><small>重点句 {index + 1} · 听完跟读</small><strong>{english}</strong><p>{item}</p><footer><TtsButton text={english} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={item} segment="sentence" label="听中文" language="zh" /></footer></div></article>; })}</div>
+          <div className="ple-page-ai-points">{pageExpansion.knowledge.map((item, index) => { const english = englishExpansion.knowledge[index] ?? englishExpansion.knowledge[0]; const focus = pageExpansion.focus?.[index] ?? []; return <article key={`${index}-${item}`}><span>{index + 1}</span><div><small>重点句 {index + 1} · 听完跟读</small><strong>{english}</strong><p className="ple-page-ai-translation"><b>中文：</b>{item}</p>{focus.length > 0 && <div className="ple-page-ai-focus"><small>重点词语 / 词组</small>{focus.map((entry) => <div key={`${entry.term}-${entry.meaning}`}><span><b>{entry.term}</b><em>{entry.meaning}</em></span><TtsButton text={entry.term} segment="word" label="听发音" language="en" playbackRate={0.85} /></div>)}</div>}<footer><TtsButton text={english} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={item} segment="sentence" label="听中文" language="zh" /></footer></div></article>; })}</div>
           <article className="ple-page-ai-challenge"><span>🌟</span><div><small>第二步 · 复习小挑战</small><strong>{englishExpansion.challenge}</strong><p>{pageExpansion.challenge}</p><footer><TtsButton text={englishExpansion.challenge} segment="sentence" label="听英文" language="en" playbackRate={0.85} /><TtsButton text={pageExpansion.challenge} segment="sentence" label="听中文" language="zh" /></footer></div></article>
         </div>}
         {expansionNotice && <p className="ple-page-ai-notice">{expansionNotice}</p>}

@@ -29,6 +29,8 @@ const tidy = (value) => value
   .replace(/\bIam\b/g, "I am")
   .replace(/\blam\b/g, "I am")
   .replace(/\bListeningactivity\b/g, "Listening activity")
+  // 课本第27页任务标题里的 magic 被视觉 OCR 误读成 magie。
+  .replace(/\bmagie\b/gi, "magic")
   .replace(/\bIcan\b/g, "I can")
   .replace(/\s+([,.;:!?])/g, "$1")
   .replace(/\s+/g, " ")

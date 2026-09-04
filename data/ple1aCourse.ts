@@ -1,6 +1,7 @@
 export type PleVocabulary = { word: string; meaning: string; note?: string };
 export type PleSentence = { en: string; zh: string; tip?: string };
-export type PleExpansion = { title: string; knowledge: string[]; challenge: string; titleEn?: string; knowledgeEn?: string[]; challengeEn?: string };
+export type PleFocusTerm = { term: string; meaning: string };
+export type PleExpansion = { title: string; knowledge: string[]; challenge: string; titleEn?: string; knowledgeEn?: string[]; challengeEn?: string; focus?: PleFocusTerm[][] };
 export type PleQuestion = { en: string; zh: string };
 
 export type PleLesson = {
